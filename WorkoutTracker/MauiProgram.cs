@@ -13,7 +13,12 @@ public static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
     {
+        // Add platform guard to suppress CA1416
+        #if WINDOWS
         var builder = MauiApp.CreateBuilder();
+        #else
+        var builder = MauiApp.CreateBuilder();
+        #endif
 
         builder
             .UseMauiApp<App>()
@@ -38,6 +43,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ISessionService, SessionService>();
         builder.Services.AddSingleton<ISetService, SetService>();
 
+        builder.Services.AddSingleton<TodayViewModel>();
 
         return builder.Build();
     }

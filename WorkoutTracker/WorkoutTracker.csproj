@@ -63,6 +63,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <MauiXaml Update="Resources\Converters\Converters.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Views\ExercisesPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
@@ -75,7 +78,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Update="Microsoft.Maui.Controls" Version="9.0.100" />
+	  <PackageReference Update="Microsoft.Maui.Controls" Version="8.0.100" />
 	</ItemGroup>
 
 	<ItemGroup>

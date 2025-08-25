@@ -1,8 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="WorkoutTracker.Views.TodayPage"
              Title="Today">
-    <VerticalStackLayout Padding="16">
-        <Label Text="Today (coming soon)" />
-    </VerticalStackLayout>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <!-- Session header -->
+            <Grid ColumnDefinitions="Auto,*">
+                <Label Text="Session:" FontAttributes="Bold" />
+                <Label Grid.Column="1"
+               Text="{Binding CurrentSession.Id, StringFormat='ID {0}'}"
+               IsVisible="{Binding CurrentSession, Converter={StaticResource NullToBoolConverter}}" />
+            </Grid>
+
+            <!-- Only show when no session started yet -->
+            <Button Text="Start Session"
+              Command="{Binding StartSessionCommand}"
+              IsVisible="{Binding CurrentSession, Converter={StaticResource NullToBoolConverter}, ConverterParameter=Invert}" />
+
+            <!-- Exercise + inputs -->
+            <Picker Title="Exercise"
+              ItemsSource="{Binding ExerciseOptions}"
+              ItemDisplayBinding="{Binding Name}"
+              SelectedItem="{Binding SelectedExercise}" />
+
+            <Grid ColumnDefinitions="*,*,*">
+                <Entry Keyboard="Numeric" Placeholder="Reps" Text="{Binding Reps}" />
+                <Entry Grid.Column="1" Keyboard="Numeric" Placeholder="Weight" Text="{Binding Weight}" />
+                <Entry Grid.Column="2" Keyboard="Numeric" Placeholder="RPE (opt)" Text="{Binding Rpe}" />
+            </Grid>
+
+            <Button Text="Add Set" Command="{Binding AddSetCommand}" />
+
+            <!-- Sets -->
+            <CollectionView ItemsSource="{Binding TodaysSets}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" Padding="8">
+                            <Label Text="{Binding TimestampUtc, StringFormat='{}{0:HH:mm}'}" />
+                            <Label Grid.Column="1" Text="{Binding ExerciseId}" />
+                            <Label Grid.Column="2" Text="{Binding SetNumber, StringFormat='Set {0}'}" />
+                            <Label Grid.Column="3" Text="{Binding Reps, StringFormat='{0} reps'}" />
+                            <Label Grid.Column="4" Text="{Binding Weight, StringFormat='{0} kg'}" />
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>
