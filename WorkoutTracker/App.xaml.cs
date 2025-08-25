@@ -1,12 +1,13 @@
-﻿namespace WorkoutTracker
-{
-    public partial class App : Application
-    {
-        public App()
-        {
-            InitializeComponent();
+﻿using WorkoutTracker.Services;
 
-            MainPage = new AppShell();
-        }
+namespace WorkoutTracker;
+
+public partial class App : Application
+{
+    public App(Database db)
+    {
+        InitializeComponent();
+        _ = db.InitAsync();
+        MainPage = new AppShell();
     }
 }
