@@ -35,6 +35,10 @@ public static class MauiProgram
         builder.Services.AddTransient<TodayPage>();
         builder.Services.AddTransient<HistoryPage>();
 
+        builder.Services.AddSingleton<ISessionService, SessionService>();
+        builder.Services.AddSingleton<ISetService, SetService>();
+
+
         return builder.Build();
     }
 }
