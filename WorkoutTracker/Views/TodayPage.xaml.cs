@@ -7,13 +7,13 @@ public partial class TodayPage : ContentPage
     public TodayPage(TodayViewModel vm)
     {
         InitializeComponent();
-        BindingContext = vm;                 // <-- important
+        BindingContext = vm;
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
         if (BindingContext is TodayViewModel m)
-            m.LoadCommand.Execute(null);     // load session + exercises
+            m.LoadCommand.Execute(null);
     }
 }

@@ -1,6 +1,6 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using System.Collections.ObjectModel;
 using WorkoutTracker.Models;
 using WorkoutTracker.Services;
 
@@ -12,6 +12,7 @@ public partial class TodayViewModel : ObservableObject
     private readonly ISetService _sets;
     private readonly IExerciseService _exercises;
 
+    // --- UI state ---
     [ObservableProperty] private WorkoutSession? currentSession;
     [ObservableProperty] private ObservableCollection<Exercise> exerciseOptions = new();
     [ObservableProperty] private Exercise? selectedExercise;
@@ -20,7 +21,8 @@ public partial class TodayViewModel : ObservableObject
     [ObservableProperty] private double weight;
     [ObservableProperty] private double? rpe;
 
-    [ObservableProperty] private ObservableCollection<SetEntry> todaysSets = new();
+    // What we render in the list (includes exercise name)
+    [ObservableProperty] private ObservableCollection<SetDisplay> todaysSets = new();
 
     public TodayViewModel(ISessionService sessions, ISetService sets, IExerciseService exercises)
     {
@@ -29,23 +31,41 @@ public partial class TodayViewModel : ObservableObject
         _exercises = exercises;
     }
 
+    // Load current session + exercises + existing sets
     [RelayCommand]
     public async Task Load()
     {
         CurrentSession = await _sessions.GetOpenSessionAsync();
+
         var options = await _exercises.GetAllAsync();
         ExerciseOptions = new ObservableCollection<Exercise>(options);
 
         if (CurrentSession != null)
         {
-            var list = await _sets.GetBySessionAsync(CurrentSession.Id);
-            TodaysSets = new ObservableCollection<SetEntry>(list);
+            var nameById = ExerciseOptions.ToDictionary(e => e.Id, e => e.Name);
+            var raw = await _sets.GetBySessionAsync(CurrentSession.Id);
+
+            TodaysSets = new ObservableCollection<SetDisplay>(
+                raw.Select(s => new SetDisplay
+                {
+                    TimestampUtc = s.TimestampUtc,
+                    ExerciseName = nameById.TryGetValue(s.ExerciseId, out var n) ? n : $"#{s.ExerciseId}",
+                    SetNumber = s.SetNumber,
+                    Reps = s.Reps,
+                    Weight = s.Weight,
+                    Rpe = s.Rpe
+                }));
+        }
+        else
+        {
+            TodaysSets.Clear();
         }
     }
 
     [RelayCommand]
     public async Task StartSession()
     {
+        // Start a new session (or return existing one for today)
         CurrentSession = await _sessions.StartSessionAsync();
         TodaysSets.Clear();
     }
@@ -54,11 +74,43 @@ public partial class TodayViewModel : ObservableObject
     public async Task AddSet()
     {
         if (CurrentSession is null || SelectedExercise is null) return;
-        var next = await _sets.GetNextSetNumberAsync(CurrentSession.Id, SelectedExercise.Id);
-        var entry = await _sets.AddAsync(CurrentSession.Id, SelectedExercise.Id, next, Reps, Weight, Rpe);
 
-        TodaysSets.Add(entry);
-        // small UX reset
-        Reps = 0; Rpe = null; // keep weight as convenience
+        // Next set number for this exercise in the current session
+        var next = await _sets.GetNextSetNumberAsync(CurrentSession.Id, SelectedExercise.Id);
+
+        // Save to DB
+        var entry = await _sets.AddAsync(
+            sessionId: CurrentSession.Id,
+            exerciseId: SelectedExercise.Id,
+            setNumber: next,
+            reps: Reps,
+            weight: Weight,
+            rpe: Rpe
+        );
+
+        // Append to UI list with the exercise *name*
+        TodaysSets.Add(new SetDisplay
+        {
+            TimestampUtc = entry.TimestampUtc,
+            ExerciseName = SelectedExercise.Name,
+            SetNumber = entry.SetNumber,
+            Reps = entry.Reps,
+            Weight = entry.Weight,
+            Rpe = entry.Rpe
+        });
+
+        // Small UX reset (keep weight for convenience)
+        Reps = 0;
+        Rpe = null;
     }
+}
+
+public class SetDisplay
+{
+    public DateTime TimestampUtc { get; set; }
+    public string ExerciseName { get; set; } = "";
+    public int SetNumber { get; set; }
+    public int Reps { get; set; }
+    public double Weight { get; set; }
+    public double? Rpe { get; set; }
 }
