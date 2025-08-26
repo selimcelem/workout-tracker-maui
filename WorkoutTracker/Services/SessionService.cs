@@ -1,4 +1,5 @@
 ﻿using SQLite;
+using System.Data.Common;
 using WorkoutTracker.Models;
 
 namespace WorkoutTracker.Services;
