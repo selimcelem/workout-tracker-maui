@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 
-namespace WorkoutTracker.Resources.Converters;
+namespace WorkoutTracker.Converters;
 
 public class NullToBoolConverter : IValueConverter
 {

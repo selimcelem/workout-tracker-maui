@@ -2,8 +2,9 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:conv="clr-namespace:WorkoutTracker.Resources.Converters">
+    xmlns:converters="clr-namespace:WorkoutTracker.Converters">
 
-    <conv:NullToBoolConverter x:Key="NullToBoolConverter" />
+    <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
 
 </ResourceDictionary>

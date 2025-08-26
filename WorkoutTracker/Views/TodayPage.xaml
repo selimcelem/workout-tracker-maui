@@ -17,11 +17,14 @@
 
             <!-- Only show when no session started yet -->
             <Button Text="Start Session"
-              Command="{Binding StartSessionCommand}"
-              IsVisible="{Binding CurrentSession,
-                                  Converter={StaticResource NullToBoolConverter},
-                                  ConverterParameter=Invert}" />
+            Command="{Binding StartSessionCommand}"
+            IsVisible="{Binding HasActiveSession, Converter={StaticResource InverseBoolConverter}}" />
 
+            <!-- End Session button (only visible if a session is active) -->
+            <Button Text="End Session"
+            Command="{Binding EndSessionCommand}"
+            IsVisible="{Binding HasActiveSession}" />
+            
             <!-- Exercise picker -->
             <Picker Title="Exercise"
               ItemsSource="{Binding ExerciseOptions}"

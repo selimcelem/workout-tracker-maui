@@ -38,7 +38,6 @@ public class SessionService : ISessionService
 
     public async Task<WorkoutSession?> GetOpenSessionAsync()
     {
-        // “Open” just means the most recent session today; you can refine later
         var today = DateTime.UtcNow.Date;
         return await _conn.Table<WorkoutSession>()
             .OrderByDescending(s => s.Id)

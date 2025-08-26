@@ -12,16 +12,16 @@ public partial class TodayViewModel : ObservableObject
     private readonly ISetService _sets;
     private readonly IExerciseService _exercises;
 
+
     // --- UI state ---
     [ObservableProperty] private WorkoutSession? currentSession;
     [ObservableProperty] private ObservableCollection<Exercise> exerciseOptions = new();
     [ObservableProperty] private Exercise? selectedExercise;
-
+    [ObservableProperty] private bool hasActiveSession;
     [ObservableProperty] private int reps;
     [ObservableProperty] private double weight;
     [ObservableProperty] private double? rpe;
 
-    // What we render in the list (includes exercise name)
     [ObservableProperty] private ObservableCollection<SetDisplay> todaysSets = new();
 
     public TodayViewModel(ISessionService sessions, ISetService sets, IExerciseService exercises)
@@ -68,6 +68,7 @@ public partial class TodayViewModel : ObservableObject
         // Start a new session (or return existing one for today)
         CurrentSession = await _sessions.StartSessionAsync();
         TodaysSets.Clear();
+        HasActiveSession = true;
     }
 
     [RelayCommand]
@@ -102,6 +103,19 @@ public partial class TodayViewModel : ObservableObject
         // Small UX reset (keep weight for convenience)
         Reps = 0;
         Rpe = null;
+    }
+
+    [RelayCommand]
+    public async Task EndSession()
+    {
+        if (CurrentSession == null)
+            return;
+
+        await _sessions.EndSessionAsync(CurrentSession.Id);
+
+        CurrentSession = null;
+        TodaysSets.Clear();
+        HasActiveSession = false;
     }
 }
 
