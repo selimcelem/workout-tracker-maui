@@ -3,7 +3,44 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="WorkoutTracker.Views.HistoryPage"
              Title="History">
-    <VerticalStackLayout Padding="16">
-        <Label Text="History (coming soon)" />
+    <VerticalStackLayout Padding="16" Spacing="12">
+
+        <Label Text="Recent Sessions" FontAttributes="Bold" />
+
+        <CollectionView ItemsSource="{Binding RecentSessions}"
+                    SelectionMode="Single"
+                    SelectedItem="{Binding SelectedSession}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid ColumnDefinitions="*,Auto" Padding="8,4">
+                        <VerticalStackLayout>
+                            <Label Text="{Binding Title}" FontAttributes="Bold" />
+                            <Label Text="{Binding Subtitle}" FontSize="12" Opacity="0.7" />
+                        </VerticalStackLayout>
+                        <Label Grid.Column="1" Text="{Binding Id}" Opacity="0.4" VerticalOptions="Center" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <BoxView HeightRequest="1" Opacity="0.2" />
+
+        <Label Text="Sets" FontAttributes="Bold" />
+
+        <CollectionView ItemsSource="{Binding SelectedSessionSets}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid ColumnDefinitions="Auto,*,Auto" Padding="8,4" ColumnSpacing="16">
+                        <Label Text="{Binding Time, StringFormat='{}{0:HH:mm}'}" />
+                        <VerticalStackLayout Grid.Column="1">
+                            <Label Text="{Binding ExerciseName}" />
+                            <Label Text="{Binding Summary}" FontSize="12" Opacity="0.7" />
+                        </VerticalStackLayout>
+                        <Label Grid.Column="2" Text="{Binding Weight, StringFormat='{0:0.##} kg'}" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
     </VerticalStackLayout>
 </ContentPage>
