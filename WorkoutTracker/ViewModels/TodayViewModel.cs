@@ -77,17 +77,22 @@ public partial class TodayViewModel : ObservableObject
         if (CurrentSession is null || SelectedExercise is null) return;
 
         // Next set number for this exercise in the current session
-        var next = await _sets.GetNextSetNumberAsync(CurrentSession.Id, SelectedExercise.Id);
+        var existingSets = await _sets.GetBySessionAsync(CurrentSession.Id);
+        var next = existingSets
+            .Where(s => s.ExerciseId == SelectedExercise.Id)
+            .Select(s => s.SetNumber)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
 
         // Save to DB
         var entry = await _sets.AddAsync(
-            sessionId: CurrentSession.Id,
-            exerciseId: SelectedExercise.Id,
-            setNumber: next,
-            reps: Reps,
-            weight: Weight,
-            rpe: Rpe
+        sessionId: CurrentSession.Id,
+        exerciseId: SelectedExercise.Id,
+        reps: Reps,
+        weight: Weight,
+        rpe: Rpe
         );
+
 
         // Append to UI list with the exercise *name*
         TodaysSets.Add(new SetDisplay
