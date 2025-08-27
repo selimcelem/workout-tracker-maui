@@ -12,13 +12,15 @@ public partial class TodayViewModel : ObservableObject
     private readonly ISetService _sets;
     private readonly IExerciseService _exercises;
 
-
     // --- UI state ---
     [ObservableProperty] private WorkoutSession? currentSession;
     [ObservableProperty] private ObservableCollection<Exercise> exerciseOptions = new();
     [ObservableProperty] private Exercise? selectedExercise;
     [ObservableProperty] private bool hasActiveSession;
-    [ObservableProperty] private int reps;
+
+    // CHANGED: Reps is now a string to bind safely to Entry.Text
+    [ObservableProperty] private string reps = string.Empty;
+
     [ObservableProperty] private double weight;
     [ObservableProperty] private double? rpe;
 
@@ -55,10 +57,12 @@ public partial class TodayViewModel : ObservableObject
                     Weight = s.Weight,
                     Rpe = s.Rpe
                 }));
+            HasActiveSession = true;
         }
         else
         {
             TodaysSets.Clear();
+            HasActiveSession = false;
         }
     }
 
@@ -90,22 +94,24 @@ public partial class TodayViewModel : ObservableObject
             await Shell.Current.DisplayAlert("Missing exercise", "Please select an exercise.", "OK");
             return;
         }
-        if (Reps <= 0)
+
+        if (!int.TryParse(Reps, out var repsValue) || repsValue <= 0)
         {
             await Shell.Current.DisplayAlert("Invalid reps", "Enter reps greater than 0.", "OK");
             return;
         }
+
         if (Weight < 0)
         {
             await Shell.Current.DisplayAlert("Invalid weight", "Weight cannot be negative.", "OK");
             return;
         }
 
-        // 3) Save (SetService will assign the correct next SetNumber per session+exercise)
+        // 3) Save (SetService assigns correct next SetNumber per session+exercise)
         var entry = await _sets.AddAsync(
             sessionId: CurrentSession.Id,
             exerciseId: SelectedExercise.Id,
-            reps: Reps,
+            reps: repsValue,
             weight: Weight,
             rpe: Rpe
         );
@@ -122,13 +128,11 @@ public partial class TodayViewModel : ObservableObject
         });
 
         // 5) Small UX reset (keep weight for convenience)
-        Reps = 0;
+        Reps = string.Empty;
         Rpe = null;
     }
 
-
     [RelayCommand]
-    // If you use [RelayCommand], keep the attribute above this method.
     private async Task EndSession()
     {
         if (CurrentSession == null) return;
@@ -138,11 +142,11 @@ public partial class TodayViewModel : ObservableObject
 
         // Clear current session so AddSet is blocked
         CurrentSession = null;
+        HasActiveSession = false;
 
         // Clear the list shown on the Today tab
         TodaysSets.Clear();
     }
-
 
     public class SetDisplay
     {

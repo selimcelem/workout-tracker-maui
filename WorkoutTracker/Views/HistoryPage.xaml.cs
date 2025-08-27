@@ -22,15 +22,15 @@ public partial class HistoryPage : ContentPage
         base.OnAppearing();
         try
         {
-            if (!_vm.RecentSessions.Any())
-                await _vm.LoadAsync();
+            if (BindingContext is HistoryViewModel vm)
+                await vm.LoadAsync(); // always reload
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine("HistoryPage OnAppearing error: " + ex);
             await DisplayAlert("History error", ex.ToString(), "OK");
         }
     }
+
 
 
     private async void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
