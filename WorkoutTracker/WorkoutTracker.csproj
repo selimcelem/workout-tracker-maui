@@ -72,6 +72,9 @@
 	  <MauiXaml Update="Views\HistoryPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
+	  <MauiXaml Update="Views\SessionDetailPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Views\TodayPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>

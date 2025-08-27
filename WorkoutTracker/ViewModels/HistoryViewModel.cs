@@ -1,58 +1,46 @@
 ﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using WorkoutTracker.Models;
 using WorkoutTracker.Services;
 
 namespace WorkoutTracker.ViewModels;
 
 public partial class HistoryViewModel : ObservableObject
 {
-    private readonly ISessionService _sessions;
-    private readonly ISetService _sets;
-    private readonly IExerciseService _exercises;
+    private readonly ISessionService _sessionService;
+    private readonly ISetService _setService;
 
-    [ObservableProperty] private bool isBusy;
-    [ObservableProperty] private ObservableCollection<SessionItem> recentSessions = new();
-    [ObservableProperty] private SessionItem? selectedSession;
+    [ObservableProperty]
+    private bool isBusy;
 
-    // Note: use a distinct item type to avoid clashing with TodayViewModel.SetDisplay
-    [ObservableProperty] private ObservableCollection<HistorySetRow> selectedSessionSets = new();
+    public ObservableCollection<SessionListItem> RecentSessions { get; } = new();
 
-    public HistoryViewModel(ISessionService sessions, ISetService sets, IExerciseService exercises)
+    public HistoryViewModel(ISessionService sessionService, ISetService setService)
     {
-        _sessions = sessions;
-        _sets = sets;
-        _exercises = exercises;
+        _sessionService = sessionService;
+        _setService = setService;
     }
 
-    [RelayCommand]
-    public async Task Load()
+    public async Task LoadAsync()
     {
         if (IsBusy) return;
-        IsBusy = true;
         try
         {
+            IsBusy = true;
             RecentSessions.Clear();
 
-            var sessions = await _sessions.GetRecentAsync(30);
-            var names = (await _exercises.GetAllAsync()).ToDictionary(e => e.Id, e => e.Name);
-
-            foreach (var s in sessions.OrderByDescending(s => s.DateUtc))
+            var recent = await _sessionService.GetRecentAsync(30);
+            foreach (var s in recent)
             {
-                var setCount = (await _sets.GetBySessionAsync(s.Id)).Count;
-                RecentSessions.Add(new SessionItem
+                var sets = await _setService.GetBySessionAsync(s.Id);
+                RecentSessions.Add(new SessionListItem
                 {
                     Id = s.Id,
-                    DateUtc = s.DateUtc,
-                    Notes = s.Notes,
-                    SetCount = setCount
+                    Title = s.DateUtc.ToLocalTime().ToString("dddd, dd MMM yyyy HH:mm"),
+                    Subtitle = sets.Count == 1 ? "1 set" : $"{sets.Count} sets",
+                    Notes = s.Notes
                 });
             }
-
-            SelectedSession = RecentSessions.FirstOrDefault();
-            if (SelectedSession != null)
-                await LoadSetsForSelected(names);
         }
         finally
         {
@@ -60,61 +48,14 @@ public partial class HistoryViewModel : ObservableObject
         }
     }
 
-    partial void OnSelectedSessionChanged(SessionItem? value)
-    {
-        _ = LoadSetsForSelected();
-    }
-
-    private async Task LoadSetsForSelected(Dictionary<int, string>? names = null)
-    {
-        if (SelectedSession == null)
-        {
-            SelectedSessionSets = new();
-            return;
-        }
-
-        names ??= (await _exercises.GetAllAsync()).ToDictionary(e => e.Id, e => e.Name);
-        var sets = await _sets.GetBySessionAsync(SelectedSession.Id);
-
-        var list = sets
-            .OrderBy(s => s.TimestampUtc)
-            .Select(s => new HistorySetRow
-            {
-                Time = s.TimestampUtc.ToLocalTime(),
-                ExerciseName = names.TryGetValue(s.ExerciseId, out var n) ? n : $"#{s.ExerciseId}",
-                SetNumber = s.SetNumber,
-                Reps = s.Reps,
-                Weight = s.Weight,
-                Rpe = s.Rpe
-            })
-            .ToList();
-
-        SelectedSessionSets = new ObservableCollection<HistorySetRow>(list);
-    }
+    [RelayCommand]
+    private async Task Refresh() => await LoadAsync();
 }
 
-public class SessionItem
+public class SessionListItem
 {
     public int Id { get; set; }
-    public DateTime DateUtc { get; set; }
+    public string Title { get; set; } = "";
+    public string Subtitle { get; set; } = "";
     public string? Notes { get; set; }
-    public int SetCount { get; set; }
-
-    public string Title => $"{DateUtc.ToLocalTime():ddd, dd MMM}";
-    public string Subtitle => $"{SetCount} set{(SetCount == 1 ? "" : "s")}" +
-                              (string.IsNullOrWhiteSpace(Notes) ? "" : $" • {Notes}");
-}
-
-// Distinct name to avoid collision with TodayViewModel's SetDisplay
-public class HistorySetRow
-{
-    public DateTime Time { get; set; }
-    public string ExerciseName { get; set; } = "";
-    public int SetNumber { get; set; }
-    public int Reps { get; set; }
-    public double Weight { get; set; }
-    public double? Rpe { get; set; }
-
-    public string Summary => $"Set {SetNumber}: {Reps} reps @ {Weight:0.##}" +
-                             (Rpe is null ? "" : $" (RPE {Rpe:0.#})");
 }
