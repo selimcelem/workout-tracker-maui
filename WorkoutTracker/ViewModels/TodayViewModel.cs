@@ -74,27 +74,43 @@ public partial class TodayViewModel : ObservableObject
     [RelayCommand]
     public async Task AddSet()
     {
-        if (CurrentSession is null || SelectedExercise is null) return;
+        // 1) Require an open session
+        if (CurrentSession == null)
+        {
+            await Shell.Current.DisplayAlert(
+                "Start a session",
+                "You need to start a session before adding sets.",
+                "OK");
+            return;
+        }
 
-        // Next set number for this exercise in the current session
-        var existingSets = await _sets.GetBySessionAsync(CurrentSession.Id);
-        var next = existingSets
-            .Where(s => s.ExerciseId == SelectedExercise.Id)
-            .Select(s => s.SetNumber)
-            .DefaultIfEmpty(0)
-            .Max() + 1;
+        // 2) Validate input
+        if (SelectedExercise == null)
+        {
+            await Shell.Current.DisplayAlert("Missing exercise", "Please select an exercise.", "OK");
+            return;
+        }
+        if (Reps <= 0)
+        {
+            await Shell.Current.DisplayAlert("Invalid reps", "Enter reps greater than 0.", "OK");
+            return;
+        }
+        if (Weight < 0)
+        {
+            await Shell.Current.DisplayAlert("Invalid weight", "Weight cannot be negative.", "OK");
+            return;
+        }
 
-        // Save to DB
+        // 3) Save (SetService will assign the correct next SetNumber per session+exercise)
         var entry = await _sets.AddAsync(
-        sessionId: CurrentSession.Id,
-        exerciseId: SelectedExercise.Id,
-        reps: Reps,
-        weight: Weight,
-        rpe: Rpe
+            sessionId: CurrentSession.Id,
+            exerciseId: SelectedExercise.Id,
+            reps: Reps,
+            weight: Weight,
+            rpe: Rpe
         );
 
-
-        // Append to UI list with the exercise *name*
+        // 4) Update UI list
         TodaysSets.Add(new SetDisplay
         {
             TimestampUtc = entry.TimestampUtc,
@@ -105,31 +121,36 @@ public partial class TodayViewModel : ObservableObject
             Rpe = entry.Rpe
         });
 
-        // Small UX reset (keep weight for convenience)
+        // 5) Small UX reset (keep weight for convenience)
         Reps = 0;
         Rpe = null;
     }
 
-    [RelayCommand]
-    public async Task EndSession()
-    {
-        if (CurrentSession == null)
-            return;
 
+    [RelayCommand]
+    // If you use [RelayCommand], keep the attribute above this method.
+    private async Task EndSession()
+    {
+        if (CurrentSession == null) return;
+
+        // Close in DB (no notes parameter)
         await _sessions.EndSessionAsync(CurrentSession.Id);
 
+        // Clear current session so AddSet is blocked
         CurrentSession = null;
-        TodaysSets.Clear();
-        HasActiveSession = false;
-    }
-}
 
-public class SetDisplay
-{
-    public DateTime TimestampUtc { get; set; }
-    public string ExerciseName { get; set; } = "";
-    public int SetNumber { get; set; }
-    public int Reps { get; set; }
-    public double Weight { get; set; }
-    public double? Rpe { get; set; }
+        // Clear the list shown on the Today tab
+        TodaysSets.Clear();
+    }
+
+
+    public class SetDisplay
+    {
+        public DateTime TimestampUtc { get; set; }
+        public string ExerciseName { get; set; } = "";
+        public int SetNumber { get; set; }
+        public int Reps { get; set; }
+        public double Weight { get; set; }
+        public double? Rpe { get; set; }
+    }
 }

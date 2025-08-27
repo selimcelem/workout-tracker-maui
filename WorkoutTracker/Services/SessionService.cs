@@ -1,5 +1,4 @@
 ﻿using SQLite;
-using System.Data.Common;
 using WorkoutTracker.Models;
 
 namespace WorkoutTracker.Services;
@@ -19,12 +18,9 @@ public class SessionService : ISessionService
 
     public async Task<WorkoutSession> StartSessionAsync(string? notes = null)
     {
-        var existing = await _conn.Table<WorkoutSession>()
-    .OrderByDescending(s => s.Id)
-    .FirstOrDefaultAsync(s => !s.IsClosed);
-
-        if (existing != null)
-            return existing;
+        // If an open (not closed) session exists today, return it
+        var existing = await GetOpenSessionAsync();
+        if (existing != null) return existing;
 
         var session = new WorkoutSession
         {
@@ -32,7 +28,6 @@ public class SessionService : ISessionService
             Notes = notes,
             IsClosed = false
         };
-
         await _conn.InsertAsync(session);
         return session;
     }
@@ -42,21 +37,18 @@ public class SessionService : ISessionService
         var s = await _conn.FindAsync<WorkoutSession>(sessionId);
         if (s is null) return;
 
-        if (!string.IsNullOrWhiteSpace(notes))
-            s.Notes = notes;
-
+        s.Notes = notes ?? s.Notes;
         s.IsClosed = true;
-
         await _conn.UpdateAsync(s);
     }
-
 
     public async Task<WorkoutSession?> GetOpenSessionAsync()
     {
         var today = DateTime.UtcNow.Date;
         return await _conn.Table<WorkoutSession>()
+            .Where(s => !s.IsClosed && s.DateUtc >= today)
             .OrderByDescending(s => s.Id)
-            .FirstOrDefaultAsync(s => s.DateUtc >= today);
+            .FirstOrDefaultAsync();
     }
 
     public Task<List<WorkoutSession>> GetRecentAsync(int take = 20) =>

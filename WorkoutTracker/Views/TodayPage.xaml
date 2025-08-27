@@ -39,9 +39,11 @@
             </Grid>
 
             <Button Text="Add Set"
-              Command="{Binding AddSetCommand}"
-              HorizontalOptions="Fill"
-              Margin="0,8,0,0" />
+                Command="{Binding AddSetCommand}"
+                IsEnabled="{Binding CurrentSession, Converter={StaticResource NullToBoolConverter}}"
+                HorizontalOptions="Fill"
+                Margin="0,8,0,0" />
+
 
             <!-- Sets list: time | exercise | set # | reps | weight -->
             <CollectionView ItemsSource="{Binding TodaysSets}">
