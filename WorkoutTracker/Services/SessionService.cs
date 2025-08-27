@@ -19,11 +19,20 @@ public class SessionService : ISessionService
 
     public async Task<WorkoutSession> StartSessionAsync(string? notes = null)
     {
-        // if an open session exists, return it
-        var existing = await GetOpenSessionAsync();
-        if (existing != null) return existing;
+        var existing = await _conn.Table<WorkoutSession>()
+    .OrderByDescending(s => s.Id)
+    .FirstOrDefaultAsync(s => !s.IsClosed);
 
-        var session = new WorkoutSession { DateUtc = DateTime.UtcNow, Notes = notes };
+        if (existing != null)
+            return existing;
+
+        var session = new WorkoutSession
+        {
+            DateUtc = DateTime.UtcNow,
+            Notes = notes,
+            IsClosed = false
+        };
+
         await _conn.InsertAsync(session);
         return session;
     }
@@ -32,9 +41,15 @@ public class SessionService : ISessionService
     {
         var s = await _conn.FindAsync<WorkoutSession>(sessionId);
         if (s is null) return;
-        s.Notes = notes ?? s.Notes;
+
+        if (!string.IsNullOrWhiteSpace(notes))
+            s.Notes = notes;
+
+        s.IsClosed = true;
+
         await _conn.UpdateAsync(s);
     }
+
 
     public async Task<WorkoutSession?> GetOpenSessionAsync()
     {
