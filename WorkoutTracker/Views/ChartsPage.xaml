@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WorkoutTracker.Views.ChartsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.Maui;assembly=LiveChartsCore.SkiaSharpView.Maui"
+    Title="Progress">
+
+    <VerticalStackLayout Padding="16" Spacing="12">
+        <Picker Title="Exercise"
+            ItemsSource="{Binding Exercises}"
+            ItemDisplayBinding="{Binding Name}"
+            SelectedItem="{Binding SelectedExercise}" />
+
+        <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+            <lvc:CartesianChart
+                Series="{Binding VolumeSeries}"
+                XAxes="{Binding XAxes}"
+                YAxes="{Binding YAxes}"
+                HeightRequest="300" />
+        </RefreshView>
+    </VerticalStackLayout>
+
+</ContentPage>

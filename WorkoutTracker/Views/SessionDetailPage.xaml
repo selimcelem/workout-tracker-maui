@@ -5,7 +5,7 @@
              Title="Session Details">
 
     <CollectionView ItemsSource="{Binding Sets}"
-                    VerticalOptions="FillAndExpand">
+                    VerticalOptions="Fill">
         <CollectionView.EmptyView>
             <VerticalStackLayout Padding="24"
                                  HorizontalOptions="Center"

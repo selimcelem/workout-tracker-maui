@@ -8,7 +8,7 @@
         <CollectionView ItemsSource="{Binding RecentSessions}"
                         SelectionMode="Single"
                         SelectionChanged="OnSelectionChanged"
-                        VerticalOptions="FillAndExpand">
+                        VerticalOptions="Fill">
 
             <CollectionView.EmptyView>
                 <VerticalStackLayout Padding="24" Spacing="8" HorizontalOptions="Center" VerticalOptions="Center">

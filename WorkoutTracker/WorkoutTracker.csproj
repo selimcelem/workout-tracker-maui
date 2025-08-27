@@ -58,12 +58,18 @@
 
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageReference Include="LiveChartsCore" Version="2.0.0-rc5.4" />
+		<PackageReference Include="LiveChartsCore.SkiaSharpView.Maui" Version="2.0.0-rc5.4" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0-preview.7.25380.108" />
+		<PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.119.0" />
 		<PackageReference Include="sqlite-net-pcl" Version="1.10.196-beta" />
 	</ItemGroup>
 
 	<ItemGroup>
 	  <MauiXaml Update="Resources\Converters\Converters.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\ChartsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\ExercisesPage.xaml">

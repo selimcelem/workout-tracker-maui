@@ -14,5 +14,7 @@
                   ContentTemplate="{DataTemplate views:ExercisesPage}" />
         <ShellContent Title="History"
                   ContentTemplate="{DataTemplate views:HistoryPage}" />
+        <ShellContent Title="Charts" 
+                  ContentTemplate="{DataTemplate views:ChartsPage}" />
     </TabBar>
 </Shell>
