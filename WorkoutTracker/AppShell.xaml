@@ -9,12 +9,13 @@
 
     <TabBar>
         <ShellContent Title="Today"
-                  ContentTemplate="{DataTemplate views:TodayPage}" />
+                      ContentTemplate="{DataTemplate views:TodayPage}" />
         <ShellContent Title="Exercises"
-                  ContentTemplate="{DataTemplate views:ExercisesPage}" />
+                      ContentTemplate="{DataTemplate views:ExercisesPage}" />
         <ShellContent Title="History"
-                  ContentTemplate="{DataTemplate views:HistoryPage}" />
-        <ShellContent Title="Charts" 
-                  ContentTemplate="{DataTemplate views:ChartsPage}" />
+                      ContentTemplate="{DataTemplate views:HistoryPage}" />
+        <ShellContent Title="Charts"
+                      ContentTemplate="{DataTemplate views:ChartsPage}" />
     </TabBar>
+
 </Shell>

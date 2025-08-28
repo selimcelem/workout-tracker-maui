@@ -1,16 +1,17 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿// File: WorkoutTracker/MauiProgram.cs
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Storage;
 using SQLite;
 using System.IO;
+using WorkoutTracker.Models;
 using WorkoutTracker.Services;
 using WorkoutTracker.ViewModels;
 using WorkoutTracker.Views;
-using WorkoutTracker.Models; // Exercise, WorkoutSession, SetEntry
 
-// NEW for chart hosting (rc5+ requires both)
-using SkiaSharp.Views.Maui.Controls.Hosting;     // .UseSkiaSharp()
-using LiveChartsCore.SkiaSharpView.Maui;          // .UseLiveCharts()
+// LiveCharts rc5+ hosting
+using SkiaSharp.Views.Maui.Controls.Hosting; // .UseSkiaSharp()
+using LiveChartsCore.SkiaSharpView.Maui;      // .UseLiveCharts()
 
 namespace WorkoutTracker;
 
@@ -22,7 +23,6 @@ public static class MauiProgram
 
         builder
             .UseMauiApp<App>()
-            // Order matters on rc5+: chain these AFTER UseMauiApp
             .UseSkiaSharp()
             .UseLiveCharts()
             .ConfigureFonts(fonts =>

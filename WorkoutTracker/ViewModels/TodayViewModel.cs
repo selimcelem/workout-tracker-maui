@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿// File: WorkoutTracker/ViewModels/TodayViewModel.cs
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WorkoutTracker.Models;
@@ -18,7 +19,7 @@ public partial class TodayViewModel : ObservableObject
     [ObservableProperty] private Exercise? selectedExercise;
     [ObservableProperty] private bool hasActiveSession;
 
-    // CHANGED: Reps is now a string to bind safely to Entry.Text
+    // Reps stays a string so Entry.Text binding never throws
     [ObservableProperty] private string reps = string.Empty;
 
     [ObservableProperty] private double weight;
@@ -137,14 +138,10 @@ public partial class TodayViewModel : ObservableObject
     {
         if (CurrentSession == null) return;
 
-        // Close in DB (no notes parameter)
         await _sessions.EndSessionAsync(CurrentSession.Id);
 
-        // Clear current session so AddSet is blocked
         CurrentSession = null;
         HasActiveSession = false;
-
-        // Clear the list shown on the Today tab
         TodaysSets.Clear();
     }
 

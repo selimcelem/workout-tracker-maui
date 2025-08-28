@@ -7,22 +7,24 @@
     Title="Progress">
 
     <VerticalStackLayout Padding="16" Spacing="12">
+
         <Picker Title="Exercise"
             ItemsSource="{Binding Exercises}"
             ItemDisplayBinding="{Binding Name}"
             SelectedItem="{Binding SelectedExercise}" />
 
-        <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+        <RefreshView IsRefreshing="{Binding IsBusy}"
+                 Command="{Binding RefreshCommand}">
             <lvc:CartesianChart
-                Series="{Binding VolumeSeries}"
-                XAxes="{Binding XAxes}"
-                YAxes="{Binding YAxes}"
-                HeightRequest="300" />
+          Series="{Binding VolumeSeries}"
+          XAxes="{Binding XAxes}"
+          YAxes="{Binding YAxes}"
+          HeightRequest="300" />
         </RefreshView>
 
         <Label Text="{Binding StatusText}"
            FontSize="12"
            Opacity="0.7" />
-    </VerticalStackLayout>
 
+    </VerticalStackLayout>
 </ContentPage>

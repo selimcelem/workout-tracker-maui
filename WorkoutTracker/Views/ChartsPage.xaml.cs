@@ -1,3 +1,4 @@
+// File: WorkoutTracker/Views/ChartsPage.xaml.cs
 using System.Diagnostics;
 using WorkoutTracker.Helpers;
 using WorkoutTracker.ViewModels;
@@ -23,7 +24,7 @@ public partial class ChartsPage : ContentPage
         base.OnAppearing();
         try
         {
-            await _vm.InitializeAsync();
+            await _vm.InitializeAsync();   // ensure Exercises load + first render
         }
         catch (Exception ex)
         {

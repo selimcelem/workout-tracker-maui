@@ -1,10 +1,14 @@
-﻿using System.Collections.ObjectModel;
+﻿// File: WorkoutTracker/ViewModels/ChartsViewModel.cs
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LiveChartsCore;
 using LiveChartsCore.Defaults;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
+using SkiaSharp;
 using WorkoutTracker.Models;
 using WorkoutTracker.Services;
 
@@ -13,7 +17,7 @@ namespace WorkoutTracker.ViewModels;
 public partial class ChartsViewModel : ObservableObject
 {
     private readonly IExerciseService _exercises;
-    private readonly ISessionService _sessions; // kept if you need later
+    private readonly ISessionService _sessions; // kept for future features
     private readonly ISetService _sets;
 
     // OLE Automation date valid range guards
@@ -108,34 +112,54 @@ public partial class ChartsViewModel : ObservableObject
 
             VolumeSeries.Clear();
 
-            var points = groups.Select(g => new DateTimePoint(g.Day, g.Volume)).ToList();
+            // Build points as ObservablePoint: X = OADate, Y = volume
+            var points = groups
+                .Select(g => new ObservablePoint(g.Day.ToOADate(), g.Volume))
+                .ToList();
 
-            // ---- Make series clearly visible (thicker stroke + markers) ----
-            // needs: using SkiaSharp;
-            var series = new LineSeries<DateTimePoint>
+            // Line + markers (high-contrast color)
+            var color = SKColors.DeepSkyBlue;
+
+            var series = new LineSeries<ObservablePoint>
             {
                 Values = points,
-                GeometrySize = 8,          // show round markers
-                GeometryStroke = null,
-                GeometryFill = null,
-                Fill = null,
-                Stroke = new SolidColorPaint
-                {
-                    StrokeThickness = 3    // thicker line; default color adapts to theme
-                }
+
+                GeometrySize = 10,
+                GeometryFill = new SolidColorPaint(color),
+                GeometryStroke = new SolidColorPaint(color) { StrokeThickness = 2 },
+
+                Stroke = new SolidColorPaint(color) { StrokeThickness = 3 },
+                Fill = null
             };
 
             VolumeSeries.Add(series);
 
-            // Clamp axis to data range to keep labeler safe
+            // Clamp axes to the data range
             if (points.Count > 0)
             {
-                var minOa = points.Min(p => p.DateTime.ToOADate());
-                var maxOa = points.Max(p => p.DateTime.ToOADate());
-                var pad = TimeSpan.FromDays(1).TotalDays;
+                // X axis (dates in OADate)
+                var minOa = points.Min(p => p.X);
+                var maxOa = points.Max(p => p.X);
+                var padX = TimeSpan.FromDays(1).TotalDays;
 
-                XAxes[0].MinLimit = Math.Max(OA_MIN, minOa - pad);
-                XAxes[0].MaxLimit = Math.Min(OA_MAX, maxOa + pad);
+                // Clamp X with explicit comparisons (avoid Math.Max/Min overload issues)
+                var minLimitX = minOa - padX;
+                if (minLimitX < OA_MIN) minLimitX = OA_MIN;
+
+                var maxLimitX = maxOa + padX;
+                if (maxLimitX > OA_MAX) maxLimitX = OA_MAX;
+
+                XAxes[0].MinLimit = (double?)minLimitX;
+                XAxes[0].MaxLimit = (double?)maxLimitX;
+
+                // Y axis (volume)
+                var yMin = points.Min(p => p.Y);
+                var yMax = points.Max(p => p.Y);
+                if (yMin == yMax) { yMin -= 1; yMax += 1; } // avoid flat range
+                var padY = (yMax - yMin) * 0.10;            // 10% padding
+
+                YAxes[0].MinLimit = yMin - padY;
+                YAxes[0].MaxLimit = yMax + padY;
 
                 StatusText = $"{points.Count} point(s) · {SelectedExercise.Name}";
             }
@@ -143,13 +167,20 @@ public partial class ChartsViewModel : ObservableObject
             {
                 XAxes[0].MinLimit = null;
                 XAxes[0].MaxLimit = null;
+                YAxes[0].MinLimit = null;
+                YAxes[0].MaxLimit = null;
                 StatusText = $"No data for {SelectedExercise.Name} in last 90 days.";
             }
+
+            // Debug: print ranges
+            System.Diagnostics.Debug.WriteLine(
+                $"CHART {SelectedExercise.Name}: points={points.Count} " +
+                $"X:[{(points.Count > 0 ? points.Min(p => p.X) : 0)}..{(points.Count > 0 ? points.Max(p => p.X) : 0)}] " +
+                $"Y:[{(points.Count > 0 ? points.Min(p => p.Y) : 0)}..{(points.Count > 0 ? points.Max(p => p.Y) : 0)}]");
         }
         finally
         {
             IsBusy = false;
         }
     }
-
 }

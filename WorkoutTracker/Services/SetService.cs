@@ -1,4 +1,5 @@
-﻿using SQLite;
+﻿// File: WorkoutTracker/Services/SetService.cs
+using SQLite;
 using WorkoutTracker.Models;
 
 namespace WorkoutTracker.Services;
@@ -9,7 +10,7 @@ public interface ISetService
     Task<List<SetEntry>> GetBySessionAsync(int sessionId);
     Task DeleteAsync(int setId);
 
-    // NEW: fetch sets for an exercise since a UTC timestamp (for charts)
+    // NEW: fetch sets for an exercise since a given UTC date
     Task<List<SetEntry>> GetByExerciseSinceAsync(int exerciseId, DateTime sinceUtc);
 }
 
@@ -18,7 +19,7 @@ public class SetService : ISetService
     private readonly SQLiteAsyncConnection _conn;
     public SetService(SQLiteAsyncConnection conn) => _conn = conn;
 
-    public async Task<int> GetNextSetNumberAsync(int sessionId, int exerciseId)
+    private async Task<int> GetNextSetNumberAsync(int sessionId, int exerciseId)
     {
         var last = await _conn.Table<SetEntry>()
             .Where(s => s.SessionId == sessionId && s.ExerciseId == exerciseId)
@@ -29,7 +30,6 @@ public class SetService : ISetService
 
     public async Task<SetEntry> AddAsync(int sessionId, int exerciseId, int reps, double weight, double? rpe = null)
     {
-        // next set number per session+exercise
         var next = await GetNextSetNumberAsync(sessionId, exerciseId);
 
         var entry = new SetEntry
@@ -55,7 +55,6 @@ public class SetService : ISetService
 
     public Task DeleteAsync(int setId) => _conn.DeleteAsync<SetEntry>(setId);
 
-    // NEW
     public Task<List<SetEntry>> GetByExerciseSinceAsync(int exerciseId, DateTime sinceUtc) =>
         _conn.Table<SetEntry>()
              .Where(s => s.ExerciseId == exerciseId && s.TimestampUtc >= sinceUtc)
