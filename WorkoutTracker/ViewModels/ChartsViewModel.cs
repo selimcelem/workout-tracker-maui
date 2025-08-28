@@ -13,14 +13,13 @@ namespace WorkoutTracker.ViewModels;
 public partial class ChartsViewModel : ObservableObject
 {
     private readonly IExerciseService _exercises;
-    private readonly ISessionService _sessions;
+    private readonly ISessionService _sessions; // kept if you need later
     private readonly ISetService _sets;
 
-    // OLE Automation date valid range (same as .NET)
-    private const double OA_MIN = -657435.0;  // 0100-01-01
-    private const double OA_MAX = 2958466.0; // 9999-12-31
+    // OLE Automation date valid range guards
+    private const double OA_MIN = -657435.0;
+    private const double OA_MAX = 2958466.0;
 
-    // Safe labeler that ignores invalid values
     private static string FormatOaDate(double v)
     {
         if (double.IsNaN(v) || double.IsInfinity(v)) return string.Empty;
@@ -35,7 +34,6 @@ public partial class ChartsViewModel : ObservableObject
 
     public ObservableCollection<ISeries> VolumeSeries { get; } = new();
 
-    // Create axes in the ctor so we can adjust Min/Max dynamically later
     public Axis[] XAxes { get; }
     public Axis[] YAxes { get; } =
     {
@@ -89,24 +87,27 @@ public partial class ChartsViewModel : ObservableObject
         {
             IsBusy = true;
 
-            // Build volume per session for the selected exercise
-            var sessions = await _sessions.GetRecentAsync(90) ?? new List<WorkoutSession>();
-            var points = new List<DateTimePoint>();
+            // Pull sets for the exercise over the last 90 days
+            var sinceUtc = DateTime.UtcNow.Date.AddDays(-90);
+            var entries = await _sets.GetByExerciseSinceAsync(SelectedExercise.Id, sinceUtc)
+                          ?? new List<SetEntry>();
 
-            foreach (var s in sessions.OrderBy(s => s.DateUtc))
-            {
-                var sets = await _sets.GetBySessionAsync(s.Id) ?? new List<SetEntry>();
-                var vol = sets.Where(x => x.ExerciseId == SelectedExercise.Id)
-                              .Sum(x => x.Reps * x.Weight);
-
-                if (vol > 0)
+            // Group by local day and sum volume (reps * weight)
+            var groups = entries
+                .GroupBy(e => e.TimestampUtc.ToLocalTime().Date)
+                .Select(g => new
                 {
-                    var day = s.DateUtc.ToLocalTime().Date;
-                    points.Add(new DateTimePoint(day, vol));
-                }
-            }
+                    Day = g.Key,
+                    Volume = g.Sum(x => x.Reps * x.Weight)
+                })
+                .Where(x => x.Volume > 0)
+                .OrderBy(x => x.Day)
+                .ToList();
 
             VolumeSeries.Clear();
+
+            var points = groups.Select(g => new DateTimePoint(g.Day, g.Volume)).ToList();
+
             VolumeSeries.Add(new LineSeries<DateTimePoint>
             {
                 Values = points,
@@ -116,24 +117,18 @@ public partial class ChartsViewModel : ObservableObject
                 Fill = null
             });
 
-            // Clamp the X axis to the data range to avoid invalid labeler inputs
+            // Clamp axis to data range to keep labeler safe
             if (points.Count > 0)
             {
-                // DateTimePoint.DateTime is the date; guard with OA range check
                 var minOa = points.Min(p => p.DateTime.ToOADate());
                 var maxOa = points.Max(p => p.DateTime.ToOADate());
-
-                // tiny padding (1 day) while staying within OA bounds
                 var pad = TimeSpan.FromDays(1).TotalDays;
-                var min = Math.Max(OA_MIN, minOa - pad);
-                var max = Math.Min(OA_MAX, maxOa + pad);
 
-                XAxes[0].MinLimit = min;
-                XAxes[0].MaxLimit = max;
+                XAxes[0].MinLimit = Math.Max(OA_MIN, minOa - pad);
+                XAxes[0].MaxLimit = Math.Min(OA_MAX, maxOa + pad);
             }
             else
             {
-                // No data: let the chart decide (and labeler will ignore invalids)
                 XAxes[0].MinLimit = null;
                 XAxes[0].MaxLimit = null;
             }
