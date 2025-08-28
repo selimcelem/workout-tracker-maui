@@ -31,6 +31,7 @@ public partial class ChartsViewModel : ObservableObject
 
     [ObservableProperty] private Exercise? selectedExercise;
     [ObservableProperty] private bool isBusy;
+    [ObservableProperty] private string? statusText;
 
     public ObservableCollection<ISeries> VolumeSeries { get; } = new();
 
@@ -86,6 +87,7 @@ public partial class ChartsViewModel : ObservableObject
         try
         {
             IsBusy = true;
+            StatusText = "Loading…";
 
             // Pull sets for the exercise over the last 90 days
             var sinceUtc = DateTime.UtcNow.Date.AddDays(-90);
@@ -108,14 +110,22 @@ public partial class ChartsViewModel : ObservableObject
 
             var points = groups.Select(g => new DateTimePoint(g.Day, g.Volume)).ToList();
 
-            VolumeSeries.Add(new LineSeries<DateTimePoint>
+            // ---- Make series clearly visible (thicker stroke + markers) ----
+            // needs: using SkiaSharp;
+            var series = new LineSeries<DateTimePoint>
             {
                 Values = points,
-                GeometryFill = null,
+                GeometrySize = 8,          // show round markers
                 GeometryStroke = null,
-                Stroke = new SolidColorPaint(),
-                Fill = null
-            });
+                GeometryFill = null,
+                Fill = null,
+                Stroke = new SolidColorPaint
+                {
+                    StrokeThickness = 3    // thicker line; default color adapts to theme
+                }
+            };
+
+            VolumeSeries.Add(series);
 
             // Clamp axis to data range to keep labeler safe
             if (points.Count > 0)
@@ -126,11 +136,14 @@ public partial class ChartsViewModel : ObservableObject
 
                 XAxes[0].MinLimit = Math.Max(OA_MIN, minOa - pad);
                 XAxes[0].MaxLimit = Math.Min(OA_MAX, maxOa + pad);
+
+                StatusText = $"{points.Count} point(s) · {SelectedExercise.Name}";
             }
             else
             {
                 XAxes[0].MinLimit = null;
                 XAxes[0].MaxLimit = null;
+                StatusText = $"No data for {SelectedExercise.Name} in last 90 days.";
             }
         }
         finally
@@ -138,4 +151,5 @@ public partial class ChartsViewModel : ObservableObject
             IsBusy = false;
         }
     }
+
 }

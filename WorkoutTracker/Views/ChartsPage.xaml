@@ -19,6 +19,10 @@
                 YAxes="{Binding YAxes}"
                 HeightRequest="300" />
         </RefreshView>
+
+        <Label Text="{Binding StatusText}"
+           FontSize="12"
+           Opacity="0.7" />
     </VerticalStackLayout>
 
 </ContentPage>
