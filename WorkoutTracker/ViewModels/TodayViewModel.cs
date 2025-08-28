@@ -1,5 +1,4 @@
-﻿// File: WorkoutTracker/ViewModels/TodayViewModel.cs
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WorkoutTracker.Models;
@@ -51,6 +50,7 @@ public partial class TodayViewModel : ObservableObject
             TodaysSets = new ObservableCollection<SetDisplay>(
                 raw.Select(s => new SetDisplay
                 {
+                    Id = s.Id, // NEW
                     TimestampUtc = s.TimestampUtc,
                     ExerciseName = nameById.TryGetValue(s.ExerciseId, out var n) ? n : $"#{s.ExerciseId}",
                     SetNumber = s.SetNumber,
@@ -70,7 +70,6 @@ public partial class TodayViewModel : ObservableObject
     [RelayCommand]
     public async Task StartSession()
     {
-        // Start a new session (or return existing one for today)
         CurrentSession = await _sessions.StartSessionAsync();
         TodaysSets.Clear();
         HasActiveSession = true;
@@ -117,9 +116,10 @@ public partial class TodayViewModel : ObservableObject
             rpe: Rpe
         );
 
-        // 4) Update UI list
+        // 4) Update UI list (include Id)
         TodaysSets.Add(new SetDisplay
         {
+            Id = entry.Id, // NEW
             TimestampUtc = entry.TimestampUtc,
             ExerciseName = SelectedExercise.Name,
             SetNumber = entry.SetNumber,
@@ -145,8 +145,27 @@ public partial class TodayViewModel : ObservableObject
         TodaysSets.Clear();
     }
 
+    // NEW: swipe-to-delete support
+    [RelayCommand]
+    private async Task DeleteSet(SetDisplay? item)
+    {
+        if (item == null) return;
+        
+        var ok = await Shell.Current.DisplayAlert(
+            "Delete set",
+            $"Delete {item.ExerciseName} · Set {item.SetNumber} · {item.Reps} reps × {item.Weight:0.##} kg?",
+            "Delete", "Cancel");
+
+        if (!ok) return;
+
+        await _sets.DeleteAsync(item.Id);
+        TodaysSets.Remove(item);
+
+    }
+
     public class SetDisplay
     {
+        public int Id { get; set; }
         public DateTime TimestampUtc { get; set; }
         public string ExerciseName { get; set; } = "";
         public int SetNumber { get; set; }

@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="WorkoutTracker.Views.TodayPage"
-             Title="Today">
+<ContentPage
+    x:Class="WorkoutTracker.Views.TodayPage"
+    x:Name="TodayPageRoot"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Today">
+
 
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="12">
@@ -44,35 +47,30 @@
                 HorizontalOptions="Fill"
                 Margin="0,8,0,0" />
 
-
-            <!-- Sets list: time | exercise | set # | reps | weight -->
             <CollectionView ItemsSource="{Binding TodaysSets}">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Grid Padding="8" ColumnSpacing="16"
-                  ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                        <SwipeView>
+                            <SwipeView.RightItems>
+                                <SwipeItems Mode="Reveal">
+                                    <SwipeItem
+              Text="Delete"
+              IconImageSource="delete.png"
+              BackgroundColor="IndianRed"
+              Command="{Binding BindingContext.DeleteSetCommand, Source={x:Reference Name=TodayPageRoot}}"
+              CommandParameter="{Binding}" />
+                                </SwipeItems>
+                            </SwipeView.RightItems>
 
-                            <Label Grid.Column="0"
-                     Text="{Binding TimestampUtc, StringFormat='{}{0:HH:mm}'}"
-                     VerticalOptions="Center" />
-
-                            <Label Grid.Column="1"
-                     Text="{Binding ExerciseName}"
-                     VerticalOptions="Center" />
-
-                            <Label Grid.Column="2"
-                     Text="{Binding SetNumber, StringFormat='Set {0}'}"
-                     VerticalOptions="Center" />
-
-                            <Label Grid.Column="3"
-                     Text="{Binding Reps, StringFormat='{0} reps'}"
-                     VerticalOptions="Center" />
-
-                            <Label Grid.Column="4"
-                     Text="{Binding Weight, StringFormat='{0} kg'}"
-                     VerticalOptions="Center" />
-
-                        </Grid>
+                            <Grid Padding="8" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                <Label Text="{Binding TimestampUtc, StringFormat='{}{0:HH:mm}'}" />
+                                <VerticalStackLayout Grid.Column="1">
+                                    <Label Text="{Binding ExerciseName}" />
+                                    <Label Text="{Binding Reps, StringFormat='Reps: {0}'}" FontSize="12" Opacity="0.7" />
+                                </VerticalStackLayout>
+                                <Label Grid.Column="2" Text="{Binding Weight, StringFormat='{0:0.##} kg'}" />
+                            </Grid>
+                        </SwipeView>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
