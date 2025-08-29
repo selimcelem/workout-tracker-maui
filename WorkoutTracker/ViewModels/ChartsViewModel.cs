@@ -134,18 +134,33 @@ public partial class ChartsViewModel : ObservableObject
                 .Select(g => new ObservablePoint(g.Day.ToOADate(), g.Volume))
                 .ToList();
 
-            // Visible line + markers
+            // Visible line/marker (fallback to scatter if only 1 point)
             var color = SKColors.DeepSkyBlue;
-            var series = new LineSeries<ObservablePoint>
+
+            if (points.Count == 1)
             {
-                Values = points,
-                GeometrySize = 10,
-                GeometryFill = new SolidColorPaint(color),
-                GeometryStroke = new SolidColorPaint(color) { StrokeThickness = 2 },
-                Stroke = new SolidColorPaint(color) { StrokeThickness = 3 },
-                Fill = null
-            };
-            VolumeSeries.Add(series);
+                var scatter = new ScatterSeries<ObservablePoint>
+                {
+                    Values = points,
+                    GeometrySize = 16,
+                    GeometryFill = new SolidColorPaint(color),
+                    GeometryStroke = new SolidColorPaint(color) { StrokeThickness = 2 }
+                };
+                VolumeSeries.Add(scatter);
+            }
+            else
+            {
+                var series = new LineSeries<ObservablePoint>
+                {
+                    Values = points,
+                    GeometrySize = 10,
+                    GeometryFill = new SolidColorPaint(color),
+                    GeometryStroke = new SolidColorPaint(color) { StrokeThickness = 2 },
+                    Stroke = new SolidColorPaint(color) { StrokeThickness = 3 },
+                    Fill = null
+                };
+                VolumeSeries.Add(series);
+            }
 
             // Clamp axes
             if (points.Count > 0)

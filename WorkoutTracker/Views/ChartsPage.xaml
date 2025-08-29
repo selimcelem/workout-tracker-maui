@@ -28,20 +28,20 @@
 
         <!-- Diagnostics: what the VM computed (day + volume) -->
         <CollectionView ItemsSource="{Binding DebugPoints}"
-                    HeightRequest="120">
+                HeightRequest="120">
             <CollectionView.EmptyView>
                 <Label Text="(No computed points yet)"
-               FontSize="12" Opacity="0.5" />
+           FontSize="12" Opacity="0.5" />
             </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Grid ColumnDefinitions="Auto,*" Padding="0,2">
+                    <HorizontalStackLayout Spacing="8" Padding="0,2">
                         <Label Text="{Binding Day, StringFormat='{}{0:MMM d}'}"
-                   FontSize="12" />
-                        <Label Grid.Column="1"
-                   Text="{Binding Volume, StringFormat='{0:0.##} kg'}"
-                   FontSize="12" />
-                    </Grid>
+               FontSize="12" />
+                        <Label Text="·" FontSize="12" Opacity="0.6" />
+                        <Label Text="{Binding Volume, StringFormat='{0:0.##} kg'}"
+               FontSize="12" />
+                    </HorizontalStackLayout>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
