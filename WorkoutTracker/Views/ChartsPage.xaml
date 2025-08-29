@@ -6,46 +6,40 @@
     xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.Maui;assembly=LiveChartsCore.SkiaSharpView.Maui"
     Title="Progress">
 
-    <VerticalStackLayout Padding="16" Spacing="12">
+    <!-- Grid ensures the chart gets real height on Android -->
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16" RowSpacing="12">
 
-        <Picker Title="Exercise"
-            ItemsSource="{Binding Exercises}"
-            ItemDisplayBinding="{Binding Name}"
-            SelectedItem="{Binding SelectedExercise}" />
+        <!-- Picker row -->
+        <Picker Grid.Row="0"
+                Title="Exercise"
+                ItemsSource="{Binding Exercises}"
+                ItemDisplayBinding="{Binding Name}"
+                SelectedItem="{Binding SelectedExercise}" />
 
-        <RefreshView IsRefreshing="{Binding IsBusy}"
-                 Command="{Binding RefreshCommand}">
-            <lvc:CartesianChart
-    Series="{Binding VolumeSeries}"
-    XAxes="{Binding XAxes}"
-    YAxes="{Binding YAxes}"
-    HeightRequest="300"
-    MinimumHeightRequest="300" />
-        </RefreshView>
+        <!-- Chart row (stretches) -->
+        <lvc:CartesianChart Grid.Row="1"
+                            Series="{Binding VolumeSeries}"
+                            XAxes="{Binding XAxes}"
+                            YAxes="{Binding YAxes}"
+                            Margin="0,8,0,0" />
 
-        <Label Text="{Binding StatusText}"
-           FontSize="12"
-           Opacity="0.7" />
+        <!-- Diagnostics/status row -->
+        <VerticalStackLayout Grid.Row="2" Spacing="6">
+            <Label Text="{Binding StatusText}" FontAttributes="Bold" />
 
-        <!-- Diagnostics: what the VM computed (day + volume) -->
-        <CollectionView ItemsSource="{Binding DebugPoints}"
-                HeightRequest="120">
-            <CollectionView.EmptyView>
-                <Label Text="(No computed points yet)"
-           FontSize="12" Opacity="0.5" />
-            </CollectionView.EmptyView>
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <HorizontalStackLayout Spacing="8" Padding="0,2">
-                        <Label Text="{Binding Day, StringFormat='{}{0:MMM d}'}"
-               FontSize="12" />
-                        <Label Text="·" FontSize="12" Opacity="0.6" />
-                        <Label Text="{Binding Volume, StringFormat='{0:0.##} kg'}"
-               FontSize="12" />
-                    </HorizontalStackLayout>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+            <!-- Optional: show computed points for debugging -->
+            <CollectionView ItemsSource="{Binding DebugPoints}" HeightRequest="120">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <HorizontalStackLayout Spacing="8" Padding="4,2">
+                            <Label Text="{Binding Day, StringFormat='{}{0:MMM dd}'}" />
+                            <Label Text="-" />
+                            <Label Text="{Binding Volume, StringFormat='{}{0:0} kg'}" />
+                        </HorizontalStackLayout>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </VerticalStackLayout>
 
-    </VerticalStackLayout>
+    </Grid>
 </ContentPage>

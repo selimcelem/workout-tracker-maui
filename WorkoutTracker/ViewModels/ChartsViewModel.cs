@@ -128,13 +128,14 @@ public partial class ChartsViewModel : ObservableObject
             foreach (var g in groups)
                 DebugPoints.Add(new DebugPoint { Day = g.Day, Volume = g.Volume });
 
-            // Build chart points
+            // ---- build points (X = OADate, Y = volume) ----
             var points = groups
-                .Where(g => g.Volume > 0)
                 .Select(g => new ObservablePoint(g.Day.ToOADate(), g.Volume))
                 .ToList();
 
-            // Visible line/marker (fallback to scatter if only 1 point)
+            VolumeSeries.Clear();
+
+            // bright, thick, and no animations so it shows instantly
             var color = SKColors.DeepSkyBlue;
 
             if (points.Count == 1)
@@ -142,9 +143,10 @@ public partial class ChartsViewModel : ObservableObject
                 var scatter = new ScatterSeries<ObservablePoint>
                 {
                     Values = points,
-                    GeometrySize = 16,
-                    Fill = new SolidColorPaint(color),   // ScatterSeries uses Fill
-                    Stroke = new SolidColorPaint(color) { StrokeThickness = 2 }
+                    GeometrySize = 18,
+                    Fill = new SolidColorPaint(color),                // marker fill
+                    Stroke = new SolidColorPaint(color) { StrokeThickness = 3 }, // marker border
+                    AnimationsSpeed = TimeSpan.Zero
                 };
                 VolumeSeries.Add(scatter);
             }
@@ -156,31 +158,39 @@ public partial class ChartsViewModel : ObservableObject
                     GeometrySize = 10,
                     GeometryFill = new SolidColorPaint(color),
                     GeometryStroke = new SolidColorPaint(color) { StrokeThickness = 2 },
-                    Stroke = new SolidColorPaint(color) { StrokeThickness = 3 },
-                    Fill = null
+                    Stroke = new SolidColorPaint(color) { StrokeThickness = 4, IsAntialias = true },
+                    Fill = null,
+                    LineSmoothness = 0,                 // straight segments
+                    AnimationsSpeed = TimeSpan.Zero
                 };
                 VolumeSeries.Add(series);
             }
 
-            // Clamp axes
+            // ---- clamp both axes to the data range ----
             if (points.Count > 0)
             {
-                var minOa = points.Min(p => p.X);
-                var maxOa = points.Max(p => p.X);
-                var padX = TimeSpan.FromDays(1).TotalDays;
+                // X axis (dates in OADate units)
+                double minX = points.Min(p => p.X ?? 0);
+                double maxX = points.Max(p => p.X ?? 0);
+                double padX = TimeSpan.FromDays(1).TotalDays;
 
-                // Avoid Math.Min/Max overload weirdness
-                var minLimitX = minOa - padX; if (minLimitX < OA_MIN) minLimitX = OA_MIN;
-                var maxLimitX = maxOa + padX; if (maxLimitX > OA_MAX) maxLimitX = OA_MAX;
-                XAxes[0].MinLimit = (double?)minLimitX;
-                XAxes[0].MaxLimit = (double?)maxLimitX;
+                double minLimitX = Math.Max(OA_MIN, minX - padX);
+                double maxLimitX = Math.Min(OA_MAX, maxX + padX);
 
-                var yMin = points.Min(p => p.Y);
-                var yMax = points.Max(p => p.Y);
-                if (yMin == yMax) { yMin -= 1; yMax += 1; }
-                var padY = (yMax - yMin) * 0.10;
-                YAxes[0].MinLimit = yMin - padY;
-                YAxes[0].MaxLimit = yMax + padY;
+                XAxes[0].MinLimit = minLimitX;
+                XAxes[0].MaxLimit = maxLimitX;
+
+                // Y axis (volume)
+                double yMin = points.Min(p => p.Y ?? 0);
+                double yMax = points.Max(p => p.Y ?? 0);
+                if (yMin == yMax) { yMin -= 1; yMax += 1; } // avoid flat range
+                double padY = (yMax - yMin) * 0.10;
+
+                double minLimitY = yMin - padY;
+                double maxLimitY = yMax + padY;
+
+                YAxes[0].MinLimit = minLimitY;
+                YAxes[0].MaxLimit = maxLimitY;
 
                 StatusText = $"{points.Count} point(s) · {SelectedExercise.Name}";
             }
@@ -190,11 +200,9 @@ public partial class ChartsViewModel : ObservableObject
                 XAxes[0].MaxLimit = null;
                 YAxes[0].MinLimit = null;
                 YAxes[0].MaxLimit = null;
-
-                // Helpful message if no data
-                StatusText = $"No data for {SelectedExercise.Name} in last 90 days on this device. " +
-                             $"Add sets in Today, then return.";
+                StatusText = $"No data for {SelectedExercise.Name} in last 90 days.";
             }
+
         }
         finally
         {

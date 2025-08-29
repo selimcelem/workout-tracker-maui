@@ -7,7 +7,6 @@ public partial class HistoryPage : ContentPage
 {
     private readonly HistoryViewModel _vm;
 
-    // Shell/HotReload-friendly ctor
     public HistoryPage() : this(ServiceHelper.GetService<HistoryViewModel>()) { }
 
     public HistoryPage(HistoryViewModel vm)
@@ -21,7 +20,7 @@ public partial class HistoryPage : ContentPage
         base.OnAppearing();
         try
         {
-            await _vm.LoadAsync(); // always reload so new sessions appear
+            await _vm.LoadAsync();
         }
         catch (Exception ex)
         {
@@ -29,15 +28,12 @@ public partial class HistoryPage : ContentPage
         }
     }
 
-    private async void OnItemTapped(object? sender, TappedEventArgs e)
+    private async void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (sender is BindableObject bo && bo.BindingContext is SessionListItem item)
+        if (e.CurrentSelection?.FirstOrDefault() is SessionListItem item)
         {
             await Shell.Current.GoToAsync($"{nameof(SessionDetailPage)}?sessionId={item.Id}");
         }
-        else if (e.Parameter is SessionListItem paramItem)
-        {
-            await Shell.Current.GoToAsync($"{nameof(SessionDetailPage)}?sessionId={paramItem.Id}");
-        }
+        if (sender is CollectionView cv) cv.SelectedItem = null;
     }
 }

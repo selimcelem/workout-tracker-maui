@@ -8,7 +8,7 @@ using WorkoutTracker.Services;
 using WorkoutTracker.ViewModels;
 using WorkoutTracker.Views;
 
-// ✨ Required by LiveCharts + Skia on MAUI
+// Required by LiveCharts + Skia on MAUI
 using LiveChartsCore.SkiaSharpView.Maui;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 
@@ -22,9 +22,9 @@ public static class MauiProgram
 
         builder
             .UseMauiApp<App>()
-            // 👇👇 These two lines register the handlers LiveCharts needs.
+            // These two lines are required for the chart handlers on Android
             .UseLiveCharts()
-            .UseSkiaSharp() // <-- This fixes “Handler not found for SKCanvasView”
+            .UseSkiaSharp()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
