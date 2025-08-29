@@ -17,7 +17,7 @@ namespace WorkoutTracker.ViewModels;
 public partial class ChartsViewModel : ObservableObject
 {
     private readonly IExerciseService _exercises;
-    private readonly ISessionService _sessions; // kept for future features
+    private readonly ISessionService _sessions; // reserved for future
     private readonly ISetService _sets;
 
     // OLE Automation date valid range guards
@@ -38,6 +38,9 @@ public partial class ChartsViewModel : ObservableObject
     [ObservableProperty] private string? statusText;
 
     public ObservableCollection<ISeries> VolumeSeries { get; } = new();
+
+    // NEW: quick diagnostics to show what we computed
+    public ObservableCollection<DebugPoint> DebugPoints { get; } = new();
 
     public Axis[] XAxes { get; }
     public Axis[] YAxes { get; } =
@@ -64,15 +67,19 @@ public partial class ChartsViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
-        if (Exercises.Count > 0) return;
+        if (Exercises.Count == 0)
+        {
+            var all = await _exercises.GetAllAsync() ?? new List<Exercise>();
+            foreach (var ex in all.OrderBy(e => e.Name))
+                Exercises.Add(ex);
+        }
 
-        var all = await _exercises.GetAllAsync() ?? new List<Exercise>();
-        foreach (var ex in all.OrderBy(e => e.Name))
-            Exercises.Add(ex);
+        // Ensure we have a selection
+        if (SelectedExercise == null)
+            SelectedExercise = Exercises.FirstOrDefault();
 
-        SelectedExercise = Exercises.FirstOrDefault();
-        if (SelectedExercise != null)
-            await RefreshChartAsync();
+        // Render
+        await RefreshChartAsync();
     }
 
     partial void OnSelectedExerciseChanged(Exercise? value)
@@ -85,20 +92,28 @@ public partial class ChartsViewModel : ObservableObject
 
     private async Task RefreshChartAsync()
     {
-        if (SelectedExercise == null) return;
+        if (SelectedExercise == null)
+        {
+            StatusText = "No exercise selected.";
+            VolumeSeries.Clear();
+            DebugPoints.Clear();
+            return;
+        }
         if (IsBusy) return;
 
         try
         {
             IsBusy = true;
-            StatusText = "Loading…";
+            StatusText = $"Loading {SelectedExercise.Name}…";
+            DebugPoints.Clear();
+            VolumeSeries.Clear();
 
-            // Pull sets for the exercise over the last 90 days
+            // Get sets for selected exercise in last 90 days
             var sinceUtc = DateTime.UtcNow.Date.AddDays(-90);
             var entries = await _sets.GetByExerciseSinceAsync(SelectedExercise.Id, sinceUtc)
                           ?? new List<SetEntry>();
 
-            // Group by local day and sum volume (reps * weight)
+            // Group by local date and compute volume (reps * weight)
             var groups = entries
                 .GroupBy(e => e.TimestampUtc.ToLocalTime().Date)
                 .Select(g => new
@@ -106,58 +121,49 @@ public partial class ChartsViewModel : ObservableObject
                     Day = g.Key,
                     Volume = g.Sum(x => x.Reps * x.Weight)
                 })
-                .Where(x => x.Volume > 0)
                 .OrderBy(x => x.Day)
                 .ToList();
 
-            VolumeSeries.Clear();
+            // Diagnostics list for the UI
+            foreach (var g in groups)
+                DebugPoints.Add(new DebugPoint { Day = g.Day, Volume = g.Volume });
 
-            // Build points as ObservablePoint: X = OADate, Y = volume
+            // Build chart points
             var points = groups
+                .Where(g => g.Volume > 0)
                 .Select(g => new ObservablePoint(g.Day.ToOADate(), g.Volume))
                 .ToList();
 
-            // Line + markers (high-contrast color)
+            // Visible line + markers
             var color = SKColors.DeepSkyBlue;
-
             var series = new LineSeries<ObservablePoint>
             {
                 Values = points,
-
                 GeometrySize = 10,
                 GeometryFill = new SolidColorPaint(color),
                 GeometryStroke = new SolidColorPaint(color) { StrokeThickness = 2 },
-
                 Stroke = new SolidColorPaint(color) { StrokeThickness = 3 },
                 Fill = null
             };
-
             VolumeSeries.Add(series);
 
-            // Clamp axes to the data range
+            // Clamp axes
             if (points.Count > 0)
             {
-                // X axis (dates in OADate)
                 var minOa = points.Min(p => p.X);
                 var maxOa = points.Max(p => p.X);
                 var padX = TimeSpan.FromDays(1).TotalDays;
 
-                // Clamp X with explicit comparisons (avoid Math.Max/Min overload issues)
-                var minLimitX = minOa - padX;
-                if (minLimitX < OA_MIN) minLimitX = OA_MIN;
-
-                var maxLimitX = maxOa + padX;
-                if (maxLimitX > OA_MAX) maxLimitX = OA_MAX;
-
+                // Avoid Math.Min/Max overload weirdness
+                var minLimitX = minOa - padX; if (minLimitX < OA_MIN) minLimitX = OA_MIN;
+                var maxLimitX = maxOa + padX; if (maxLimitX > OA_MAX) maxLimitX = OA_MAX;
                 XAxes[0].MinLimit = (double?)minLimitX;
                 XAxes[0].MaxLimit = (double?)maxLimitX;
 
-                // Y axis (volume)
                 var yMin = points.Min(p => p.Y);
                 var yMax = points.Max(p => p.Y);
-                if (yMin == yMax) { yMin -= 1; yMax += 1; } // avoid flat range
-                var padY = (yMax - yMin) * 0.10;            // 10% padding
-
+                if (yMin == yMax) { yMin -= 1; yMax += 1; }
+                var padY = (yMax - yMin) * 0.10;
                 YAxes[0].MinLimit = yMin - padY;
                 YAxes[0].MaxLimit = yMax + padY;
 
@@ -169,18 +175,22 @@ public partial class ChartsViewModel : ObservableObject
                 XAxes[0].MaxLimit = null;
                 YAxes[0].MinLimit = null;
                 YAxes[0].MaxLimit = null;
-                StatusText = $"No data for {SelectedExercise.Name} in last 90 days.";
-            }
 
-            // Debug: print ranges
-            System.Diagnostics.Debug.WriteLine(
-                $"CHART {SelectedExercise.Name}: points={points.Count} " +
-                $"X:[{(points.Count > 0 ? points.Min(p => p.X) : 0)}..{(points.Count > 0 ? points.Max(p => p.X) : 0)}] " +
-                $"Y:[{(points.Count > 0 ? points.Min(p => p.Y) : 0)}..{(points.Count > 0 ? points.Max(p => p.Y) : 0)}]");
+                // Helpful message if no data
+                StatusText = $"No data for {SelectedExercise.Name} in last 90 days on this device. " +
+                             $"Add sets in Today, then return.";
+            }
         }
         finally
         {
             IsBusy = false;
         }
     }
+}
+
+// Small DTO for the diagnostics list
+public class DebugPoint
+{
+    public DateTime Day { get; set; }
+    public double Volume { get; set; }
 }
