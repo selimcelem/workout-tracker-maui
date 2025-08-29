@@ -10,8 +10,8 @@ public partial class HistoryViewModel : ObservableObject
     private readonly ISessionService _sessionService;
     private readonly ISetService _setService;
 
-    [ObservableProperty]
-    private bool isBusy;
+    [ObservableProperty] private bool isBusy;
+    [ObservableProperty] private string? status; // for quick diagnostics in UI (optional)
 
     public ObservableCollection<SessionListItem> RecentSessions { get; } = new();
 
@@ -24,9 +24,12 @@ public partial class HistoryViewModel : ObservableObject
     public async Task LoadAsync()
     {
         if (IsBusy) return;
+
         try
         {
             IsBusy = true;
+            Status = "Loading...";
+
             RecentSessions.Clear();
 
             var recent = await _sessionService.GetRecentAsync(30);
@@ -41,6 +44,8 @@ public partial class HistoryViewModel : ObservableObject
                     Notes = s.Notes
                 });
             }
+
+            Status = RecentSessions.Count == 0 ? "No sessions yet." : null;
         }
         finally
         {
