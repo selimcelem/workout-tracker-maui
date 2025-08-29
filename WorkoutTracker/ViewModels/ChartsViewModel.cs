@@ -143,8 +143,8 @@ public partial class ChartsViewModel : ObservableObject
                 {
                     Values = points,
                     GeometrySize = 16,
-                    GeometryFill = new SolidColorPaint(color),
-                    GeometryStroke = new SolidColorPaint(color) { StrokeThickness = 2 }
+                    Fill = new SolidColorPaint(color),   // ScatterSeries uses Fill
+                    Stroke = new SolidColorPaint(color) { StrokeThickness = 2 }
                 };
                 VolumeSeries.Add(scatter);
             }

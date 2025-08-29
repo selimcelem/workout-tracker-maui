@@ -9,40 +9,42 @@
 
         <Label Text="Recent Sessions" FontAttributes="Bold" />
 
-        
-        <CollectionView ItemsSource="{Binding RecentSessions}"
-                    SelectionMode="None">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Grid Padding="12"
-                ColumnDefinitions="*,Auto"
-                ColumnSpacing="12">
+        <!-- Pull to refresh -->
+        <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+            <CollectionView ItemsSource="{Binding RecentSessions}"
+                      SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="12"
+                  ColumnDefinitions="*,Auto"
+                  ColumnSpacing="12">
 
-                        
-                        <Grid.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnItemTapped" />
-                        </Grid.GestureRecognizers>
+                            <!-- Tap row to navigate -->
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnItemTapped" />
+                            </Grid.GestureRecognizers>
 
-                        <VerticalStackLayout>
-                            <Label Text="{Binding Title}" FontAttributes="Bold" />
-                            <Label Text="{Binding Subtitle}" FontSize="12" Opacity="0.7" />
-                        </VerticalStackLayout>
+                            <VerticalStackLayout>
+                                <Label Text="{Binding Title}" FontAttributes="Bold" />
+                                <Label Text="{Binding Subtitle}" FontSize="12" Opacity="0.7" />
+                            </VerticalStackLayout>
 
-                        <Label Grid.Column="1"
-                   Text="›"
-                   FontSize="24"
-                   Opacity="0.4"
-                   VerticalOptions="Center" />
-                    </Grid>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+                            <Label Grid.Column="1"
+                     Text="›"
+                     FontSize="24"
+                     Opacity="0.4"
+                     VerticalOptions="Center" />
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
 
         <BoxView HeightRequest="1" Opacity="0.2" />
 
         <Label Text="Sets" FontAttributes="Bold" />
 
-   
+        <!-- If you use a details preview under the list, keep this; otherwise you can remove -->
         <CollectionView ItemsSource="{Binding SelectedSessionSets}">
             <CollectionView.ItemTemplate>
                 <DataTemplate>

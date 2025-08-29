@@ -10,7 +10,6 @@ public partial class HistoryPage : ContentPage
     // Shell/HotReload-friendly ctor
     public HistoryPage() : this(ServiceHelper.GetService<HistoryViewModel>()) { }
 
-    // DI ctor (kept for tests/manual resolve)
     public HistoryPage(HistoryViewModel vm)
     {
         InitializeComponent();
@@ -20,22 +19,23 @@ public partial class HistoryPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        if (!_vm.RecentSessions.Any())
-            await _vm.LoadAsync();
+        try
+        {
+            await _vm.LoadAsync(); // <-- always reload
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("History error", ex.Message, "OK");
+        }
     }
 
-    // Tap handler for each row
     private async void OnItemTapped(object? sender, TappedEventArgs e)
     {
-        // Prefer binding context of the tapped Grid
         if (sender is BindableObject bo && bo.BindingContext is SessionListItem item)
         {
             await Shell.Current.GoToAsync($"{nameof(SessionDetailPage)}?sessionId={item.Id}");
-            return;
         }
-
-        // Fallback: if a CommandParameter was set (we didn't use it)
-        if (e.Parameter is SessionListItem paramItem)
+        else if (e.Parameter is SessionListItem paramItem)
         {
             await Shell.Current.GoToAsync($"{nameof(SessionDetailPage)}?sessionId={paramItem.Id}");
         }
