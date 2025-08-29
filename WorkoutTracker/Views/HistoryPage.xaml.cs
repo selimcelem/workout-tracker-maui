@@ -21,7 +21,7 @@ public partial class HistoryPage : ContentPage
         base.OnAppearing();
         try
         {
-            await _vm.LoadAsync(); // <-- always reload
+            await _vm.LoadAsync(); // always reload so new sessions appear
         }
         catch (Exception ex)
         {

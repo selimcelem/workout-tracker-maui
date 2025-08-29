@@ -16,10 +16,11 @@
         <RefreshView IsRefreshing="{Binding IsBusy}"
                  Command="{Binding RefreshCommand}">
             <lvc:CartesianChart
-          Series="{Binding VolumeSeries}"
-          XAxes="{Binding XAxes}"
-          YAxes="{Binding YAxes}"
-          HeightRequest="300" />
+    Series="{Binding VolumeSeries}"
+    XAxes="{Binding XAxes}"
+    YAxes="{Binding YAxes}"
+    HeightRequest="300"
+    MinimumHeightRequest="300" />
         </RefreshView>
 
         <Label Text="{Binding StatusText}"

@@ -40,11 +40,14 @@
             </CollectionView>
         </RefreshView>
 
+        <!-- Optional status message -->
+        <Label Text="{Binding Status}" FontSize="12" Opacity="0.7" />
+
         <BoxView HeightRequest="1" Opacity="0.2" />
 
         <Label Text="Sets" FontAttributes="Bold" />
 
-        <!-- If you use a details preview under the list, keep this; otherwise you can remove -->
+        <!-- (Optional preview area; fine to keep or remove) -->
         <CollectionView ItemsSource="{Binding SelectedSessionSets}">
             <CollectionView.ItemTemplate>
                 <DataTemplate>

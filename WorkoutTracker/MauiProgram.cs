@@ -1,17 +1,16 @@
-﻿// File: WorkoutTracker/MauiProgram.cs
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Storage;
 using SQLite;
 using System.IO;
-using WorkoutTracker.Models;
+
 using WorkoutTracker.Services;
 using WorkoutTracker.ViewModels;
 using WorkoutTracker.Views;
 
-// LiveCharts rc5+ hosting
-using SkiaSharp.Views.Maui.Controls.Hosting; // .UseSkiaSharp()
-using LiveChartsCore.SkiaSharpView.Maui;      // .UseLiveCharts()
+// ✨ Required by LiveCharts + Skia on MAUI
+using LiveChartsCore.SkiaSharpView.Maui;
+using SkiaSharp.Views.Maui.Controls.Hosting;
 
 namespace WorkoutTracker;
 
@@ -23,8 +22,9 @@ public static class MauiProgram
 
         builder
             .UseMauiApp<App>()
-            .UseSkiaSharp()
+            // 👇👇 These two lines register the handlers LiveCharts needs.
             .UseLiveCharts()
+            .UseSkiaSharp() // <-- This fixes “Handler not found for SKCanvasView”
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -39,7 +39,7 @@ public static class MauiProgram
         builder.Services.AddSingleton(conn);
         builder.Services.AddSingleton<Database>();
 
-        // Services
+        // Services (interfaces -> implementations)
         builder.Services.AddSingleton<IExerciseService, ExerciseService>();
         builder.Services.AddSingleton<ISessionService, SessionService>();
         builder.Services.AddSingleton<ISetService, SetService>();
@@ -57,14 +57,6 @@ public static class MauiProgram
         builder.Services.AddTransient<SessionDetailPage>();
         builder.Services.AddTransient<ChartsPage>();
 
-        var app = builder.Build();
-
-        // Ensure DB schema exists
-        var connection = app.Services.GetRequiredService<SQLiteAsyncConnection>();
-        connection.CreateTableAsync<Exercise>().GetAwaiter().GetResult();
-        connection.CreateTableAsync<WorkoutSession>().GetAwaiter().GetResult();
-        connection.CreateTableAsync<SetEntry>().GetAwaiter().GetResult();
-
-        return app;
+        return builder.Build();
     }
 }

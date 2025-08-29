@@ -11,7 +11,7 @@ public partial class HistoryViewModel : ObservableObject
     private readonly ISetService _setService;
 
     [ObservableProperty] private bool isBusy;
-    [ObservableProperty] private string? status; // for quick diagnostics in UI (optional)
+    [ObservableProperty] private string? status;
 
     public ObservableCollection<SessionListItem> RecentSessions { get; } = new();
 
@@ -24,7 +24,6 @@ public partial class HistoryViewModel : ObservableObject
     public async Task LoadAsync()
     {
         if (IsBusy) return;
-
         try
         {
             IsBusy = true;
