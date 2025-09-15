@@ -6,7 +6,6 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     Title="Today">
 
-
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="12">
 
@@ -14,39 +13,58 @@
             <Grid ColumnDefinitions="Auto,*">
                 <Label Text="Session:" FontAttributes="Bold" />
                 <Label Grid.Column="1"
-               Text="{Binding CurrentSession.Id, StringFormat='ID {0}'}"
-               IsVisible="{Binding CurrentSession, Converter={StaticResource NullToBoolConverter}}" />
+                       Text="{Binding CurrentSession.Id, StringFormat='ID {0}'}"
+                       IsVisible="{Binding CurrentSession, Converter={StaticResource NullToBoolConverter}}" />
             </Grid>
 
-            <!-- Only show when no session started yet -->
+            <!-- Start / End session -->
             <Button Text="Start Session"
-            Command="{Binding StartSessionCommand}"
-            IsVisible="{Binding HasActiveSession, Converter={StaticResource InverseBoolConverter}}" />
+                    Command="{Binding StartSessionCommand}"
+                    IsVisible="{Binding HasActiveSession, Converter={StaticResource InverseBoolConverter}}" />
 
-            <!-- End Session button (only visible if a session is active) -->
             <Button Text="End Session"
-            Command="{Binding EndSessionCommand}"
-            IsVisible="{Binding HasActiveSession}" />
-            
+                    Command="{Binding EndSessionCommand}"
+                    IsVisible="{Binding HasActiveSession}" />
+
             <!-- Exercise picker -->
             <Picker Title="Exercise"
-              ItemsSource="{Binding ExerciseOptions}"
-              ItemDisplayBinding="{Binding Name}"
-              SelectedItem="{Binding SelectedExercise}" />
+                    ItemsSource="{Binding ExerciseOptions}"
+                    ItemDisplayBinding="{Binding Name}"
+                    SelectedItem="{Binding SelectedExercise}" />
 
-            <!-- Inputs -->
-            <Grid ColumnDefinitions="*,*,*">
-                <Entry Keyboard="Numeric" Placeholder="Reps"      Text="{Binding Reps}" />
-                <Entry Grid.Column="1" Keyboard="Numeric" Placeholder="Weight"   Text="{Binding Weight}" />
-                <Entry Grid.Column="2" Keyboard="Numeric" Placeholder="RPE (opt)" Text="{Binding Rpe}" />
+            <!-- Inputs: reps + weight -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Entry Grid.Column="0"
+                       Keyboard="Numeric"
+                       Placeholder="Reps"
+                       Text="{Binding Reps}" />
+
+                <Entry Grid.Column="1"
+                       Keyboard="Numeric"
+                       Placeholder="Weight (kg)"
+                       Text="{Binding WeightText}" />
+            </Grid>
+
+            <!-- RPE row: picker on the left, explanation on the right -->
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Padding="0,4,0,0">
+                <Picker Grid.Column="0"
+                        Title="RPE (optional)"
+                        ItemsSource="{Binding RpeOptions}"
+                        SelectedItem="{Binding Rpe}"
+                        WidthRequest="140" />
+                <Label Grid.Column="1"
+                       Text="{Binding RpeDescription}"
+                       VerticalTextAlignment="Center"
+                       Opacity="0.75" />
             </Grid>
 
             <Button Text="Add Set"
-                Command="{Binding AddSetCommand}"
-                IsEnabled="{Binding CurrentSession, Converter={StaticResource NullToBoolConverter}}"
-                HorizontalOptions="Fill"
-                Margin="0,8,0,0" />
+                    Command="{Binding AddSetCommand}"
+                    IsEnabled="{Binding HasActiveSession}"
+                    HorizontalOptions="Fill"
+                    Margin="0,8,0,0" />
 
+            <!-- Today's sets with swipe-to-delete -->
             <CollectionView ItemsSource="{Binding TodaysSets}">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
@@ -54,11 +72,11 @@
                             <SwipeView.RightItems>
                                 <SwipeItems Mode="Reveal">
                                     <SwipeItem
-              Text="Delete"
-              IconImageSource="delete.png"
-              BackgroundColor="IndianRed"
-              Command="{Binding BindingContext.DeleteSetCommand, Source={x:Reference Name=TodayPageRoot}}"
-              CommandParameter="{Binding}" />
+                                        Text="Delete"
+                                        IconImageSource="delete.png"
+                                        BackgroundColor="IndianRed"
+                                        Command="{Binding BindingContext.DeleteSetCommand, Source={x:Reference Name=TodayPageRoot}}"
+                                        CommandParameter="{Binding}" />
                                 </SwipeItems>
                             </SwipeView.RightItems>
 
@@ -66,9 +84,11 @@
                                 <Label Text="{Binding TimestampUtc, StringFormat='{}{0:HH:mm}'}" />
                                 <VerticalStackLayout Grid.Column="1">
                                     <Label Text="{Binding ExerciseName}" />
-                                    <Label Text="{Binding Reps, StringFormat='Reps: {0}'}" FontSize="12" Opacity="0.7" />
+                                    <Label Text="{Binding Reps, StringFormat='Reps: {0}'}"
+                                           FontSize="12" Opacity="0.7" />
                                 </VerticalStackLayout>
-                                <Label Grid.Column="2" Text="{Binding Weight, StringFormat='{0:0.##} kg'}" />
+                                <Label Grid.Column="2"
+                                       Text="{Binding Weight, StringFormat='{0:0.##} kg'}" />
                             </Grid>
                         </SwipeView>
                     </DataTemplate>

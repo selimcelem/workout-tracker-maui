@@ -18,12 +18,17 @@ public partial class TodayViewModel : ObservableObject
     [ObservableProperty] private Exercise? selectedExercise;
     [ObservableProperty] private bool hasActiveSession;
 
-    // Reps stays a string so Entry.Text binding never throws
+    // Inputs
+    // Reps/Weight as strings so placeholders show and Entry.Text never throws
     [ObservableProperty] private string reps = string.Empty;
+    [ObservableProperty] private string weightText = string.Empty;
 
-    [ObservableProperty] private double weight;
-    [ObservableProperty] private double? rpe;
+    // RPE 0–10 (optional)
+    public ObservableCollection<int> RpeOptions { get; } = new(Enumerable.Range(0, 11));
+    [ObservableProperty] private int? rpe;                     // nullable selection
+    [ObservableProperty] private string rpeDescription = "(optional)"; // live description
 
+    // Rendered list for "Today"
     [ObservableProperty] private ObservableCollection<SetDisplay> todaysSets = new();
 
     public TodayViewModel(ISessionService sessions, ISetService sets, IExerciseService exercises)
@@ -50,7 +55,7 @@ public partial class TodayViewModel : ObservableObject
             TodaysSets = new ObservableCollection<SetDisplay>(
                 raw.Select(s => new SetDisplay
                 {
-                    Id = s.Id, // NEW
+                    Id = s.Id,
                     TimestampUtc = s.TimestampUtc,
                     ExerciseName = nameById.TryGetValue(s.ExerciseId, out var n) ? n : $"#{s.ExerciseId}",
                     SetNumber = s.SetNumber,
@@ -58,6 +63,7 @@ public partial class TodayViewModel : ObservableObject
                     Weight = s.Weight,
                     Rpe = s.Rpe
                 }));
+
             HasActiveSession = true;
         }
         else
@@ -101,25 +107,28 @@ public partial class TodayViewModel : ObservableObject
             return;
         }
 
-        if (Weight < 0)
+        if (!double.TryParse(WeightText, out var weight) || weight < 0)
         {
-            await Shell.Current.DisplayAlert("Invalid weight", "Weight cannot be negative.", "OK");
+            await Shell.Current.DisplayAlert("Invalid weight", "Enter a non-negative number.", "OK");
             return;
         }
+
+        // RPE is optional (nullable). Persist as double? to match model.
+        double? rpeToSave = Rpe.HasValue ? Rpe.Value : null;
 
         // 3) Save (SetService assigns correct next SetNumber per session+exercise)
         var entry = await _sets.AddAsync(
             sessionId: CurrentSession.Id,
             exerciseId: SelectedExercise.Id,
             reps: repsValue,
-            weight: Weight,
-            rpe: Rpe
+            weight: weight,
+            rpe: rpeToSave
         );
 
-        // 4) Update UI list (include Id)
+        // 4) Update UI list
         TodaysSets.Add(new SetDisplay
         {
-            Id = entry.Id, // NEW
+            Id = entry.Id,
             TimestampUtc = entry.TimestampUtc,
             ExerciseName = SelectedExercise.Name,
             SetNumber = entry.SetNumber,
@@ -130,7 +139,8 @@ public partial class TodayViewModel : ObservableObject
 
         // 5) Small UX reset (keep weight for convenience)
         Reps = string.Empty;
-        Rpe = null;
+        // keep WeightText as-is for faster entry
+        Rpe = null; // optional
     }
 
     [RelayCommand]
@@ -145,12 +155,12 @@ public partial class TodayViewModel : ObservableObject
         TodaysSets.Clear();
     }
 
-    // NEW: swipe-to-delete support
+    // swipe-to-delete
     [RelayCommand]
     private async Task DeleteSet(SetDisplay? item)
     {
         if (item == null) return;
-        
+
         var ok = await Shell.Current.DisplayAlert(
             "Delete set",
             $"Delete {item.ExerciseName} · Set {item.SetNumber} · {item.Reps} reps × {item.Weight:0.##} kg?",
@@ -160,7 +170,28 @@ public partial class TodayViewModel : ObservableObject
 
         await _sets.DeleteAsync(item.Id);
         TodaysSets.Remove(item);
+    }
 
+    // Live description when RPE changes
+    partial void OnRpeChanged(int? value)
+    {
+        RpeDescription = DescribeRpe(value);
+    }
+
+    private static string DescribeRpe(int? value)
+    {
+        if (value is null) return "(optional)";
+        return value switch
+        {
+            0 => "No effort at all",
+            1 or 2 => "Very light",
+            3 or 4 => "Light to moderate",
+            5 or 6 => "Somewhat hard",
+            7 or 8 => "Hard",
+            9 => "Very hard (near max)",
+            10 => "Max effort / failure",
+            _ => "(optional)"
+        };
     }
 
     public class SetDisplay
