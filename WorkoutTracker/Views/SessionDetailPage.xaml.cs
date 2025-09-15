@@ -48,11 +48,14 @@ public partial class SessionDetailPage : ContentPage
         {
             var exercise = allExercises.FirstOrDefault(e => e.Id == entry.ExerciseId);
 
+            var summary = $"Set {entry.SetNumber}: {entry.Reps} reps × {entry.Weight:0.##} kg";
+            if (entry.Rpe.HasValue) summary += $" · RPE: {entry.Rpe.Value:0.#}";
+
             Sets.Add(new SetRow
             {
                 Time = entry.TimestampUtc.ToLocalTime().ToString("HH:mm"),
                 ExerciseName = exercise?.Name ?? $"Exercise #{entry.ExerciseId}",
-                Summary = $"Set {entry.SetNumber}: {entry.Reps} reps × {entry.Weight:0.##} kg"
+                Summary = summary
             });
         }
     }

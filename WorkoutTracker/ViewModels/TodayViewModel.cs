@@ -23,10 +23,27 @@ public partial class TodayViewModel : ObservableObject
     [ObservableProperty] private string reps = string.Empty;
     [ObservableProperty] private string weightText = string.Empty;
 
-    // RPE 0–10 (optional)
-    public ObservableCollection<int> RpeOptions { get; } = new(Enumerable.Range(0, 11));
-    [ObservableProperty] private int? rpe;                     // nullable selection
-    [ObservableProperty] private string rpeDescription = "(optional)"; // live description
+    // RPE (0–10) as number + description for Picker popup
+    public sealed class RpeOption
+    {
+        public string Display { get; }      // e.g., "0 — No effort at all"
+        public double? Value { get; }       // e.g., 0..10, or null
+        public RpeOption(string display, double? value) { Display = display; Value = value; }
+    }
+
+    public ObservableCollection<RpeOption> RpeOptions { get; } = new()
+{
+    new("0 — No effort at all", 0),
+    new("1–2 — Very easy", 1.5),
+    new("3–4 — Easy / somewhat hard", 3.5),
+    new("5–6 — Hard", 5.5),
+    new("7–8 — Very hard", 7.5),
+    new("9 — Near max", 9),
+    new("10 — Maximal effort", 10),
+};
+
+    [ObservableProperty] private RpeOption? selectedRpe;
+
 
     // Rendered list for "Today"
     [ObservableProperty] private ObservableCollection<SetDisplay> todaysSets = new();
@@ -114,7 +131,7 @@ public partial class TodayViewModel : ObservableObject
         }
 
         // RPE is optional (nullable). Persist as double? to match model.
-        double? rpeToSave = Rpe.HasValue ? Rpe.Value : null;
+        double? rpeToSave = SelectedRpe?.Value;
 
         // 3) Save (SetService assigns correct next SetNumber per session+exercise)
         var entry = await _sets.AddAsync(
@@ -140,7 +157,7 @@ public partial class TodayViewModel : ObservableObject
         // 5) Small UX reset (keep weight for convenience)
         Reps = string.Empty;
         // keep WeightText as-is for faster entry
-        Rpe = null; // optional
+        SelectedRpe = null; // optional
     }
 
     [RelayCommand]
@@ -170,28 +187,6 @@ public partial class TodayViewModel : ObservableObject
 
         await _sets.DeleteAsync(item.Id);
         TodaysSets.Remove(item);
-    }
-
-    // Live description when RPE changes
-    partial void OnRpeChanged(int? value)
-    {
-        RpeDescription = DescribeRpe(value);
-    }
-
-    private static string DescribeRpe(int? value)
-    {
-        if (value is null) return "(optional)";
-        return value switch
-        {
-            0 => "No effort at all",
-            1 or 2 => "Very light",
-            3 or 4 => "Light to moderate",
-            5 or 6 => "Somewhat hard",
-            7 or 8 => "Hard",
-            9 => "Very hard (near max)",
-            10 => "Max effort / failure",
-            _ => "(optional)"
-        };
     }
 
     public class SetDisplay

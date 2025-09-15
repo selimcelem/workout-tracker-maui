@@ -45,18 +45,13 @@
                        Text="{Binding WeightText}" />
             </Grid>
 
-            <!-- RPE row: picker on the left, explanation on the right -->
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Padding="0,4,0,0">
-                <Picker Grid.Column="0"
-                        Title="RPE (optional)"
-                        ItemsSource="{Binding RpeOptions}"
-                        SelectedItem="{Binding Rpe}"
-                        WidthRequest="140" />
-                <Label Grid.Column="1"
-                       Text="{Binding RpeDescription}"
-                       VerticalTextAlignment="Center"
-                       Opacity="0.75" />
-            </Grid>
+            <!-- RPE -->
+            <Picker
+                    Title="RPE (optional)"
+                    ItemsSource="{Binding RpeOptions}"
+                    ItemDisplayBinding="{Binding Display}"
+                    SelectedItem="{Binding SelectedRpe}"
+                    HorizontalOptions="FillAndExpand" />
 
             <Button Text="Add Set"
                     Command="{Binding AddSetCommand}"
@@ -82,13 +77,24 @@
 
                             <Grid Padding="8" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                 <Label Text="{Binding TimestampUtc, StringFormat='{}{0:HH:mm}'}" />
+
                                 <VerticalStackLayout Grid.Column="1">
                                     <Label Text="{Binding ExerciseName}" />
-                                    <Label Text="{Binding Reps, StringFormat='Reps: {0}'}"
-                                           FontSize="12" Opacity="0.7" />
+                                    <!-- Reps + (optional) RPE inline -->
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8">
+                                        <Label Text="{Binding Reps, StringFormat='Reps: {0}'}"
+                                        FontSize="12" Opacity="0.7" />
+                                        <Label Grid.Column="1" Text="·" FontSize="12" Opacity="0.5"
+                                        IsVisible="{Binding Rpe, Converter={StaticResource NullToBoolConverter}}" />
+                                        <Label Grid.Column="2"
+                                        Text="{Binding Rpe, StringFormat='RPE: {0:0.#}'}"
+                                        FontSize="12" Opacity="0.7"
+                                        IsVisible="{Binding Rpe, Converter={StaticResource NullToBoolConverter}}" />
+                                    </Grid>
                                 </VerticalStackLayout>
+
                                 <Label Grid.Column="2"
-                                       Text="{Binding Weight, StringFormat='{0:0.##} kg'}" />
+                                Text="{Binding Weight, StringFormat='{0:0.##} kg'}" />
                             </Grid>
                         </SwipeView>
                     </DataTemplate>
