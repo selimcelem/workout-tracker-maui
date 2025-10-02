@@ -27,13 +27,4 @@ public partial class HistoryPage : ContentPage
             await DisplayAlert("History error", ex.Message, "OK");
         }
     }
-
-    private async void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (e.CurrentSelection?.FirstOrDefault() is SessionListItem item)
-        {
-            await Shell.Current.GoToAsync($"{nameof(SessionDetailPage)}?sessionId={item.Id}");
-        }
-        if (sender is CollectionView cv) cv.SelectedItem = null;
-    }
 }

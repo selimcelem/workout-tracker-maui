@@ -1,34 +1,58 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage
     x:Class="WorkoutTracker.Views.HistoryPage"
+    x:Name="HistoryPageRoot"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     Title="History">
 
     <VerticalStackLayout Padding="16" Spacing="12">
-        <Label Text="Recent Sessions" FontAttributes="Bold"/>
+        <Label Text="Recent Sessions" FontAttributes="Bold" />
 
         <CollectionView
             x:Name="SessionsList"
             ItemsSource="{Binding RecentSessions}"
-            SelectionMode="Single"
-            SelectionChanged="OnSelectionChanged"
+            SelectionMode="None"
             HeightRequest="240">
 
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Grid ColumnDefinitions="*,Auto" Padding="8,4">
-                        <VerticalStackLayout>
-                            <Label Text="{Binding Title}" FontAttributes="Bold"/>
-                            <Label Text="{Binding Subtitle}" FontSize="12" Opacity="0.7"/>
-                        </VerticalStackLayout>
-                        <Label Grid.Column="1" Text="{Binding Id}" Opacity="0.4" VerticalOptions="Center"/>
-                    </Grid>
+                    <SwipeView>
+                        <SwipeView.RightItems>
+                            <SwipeItems Mode="Reveal">
+                                <SwipeItem
+                                    Text="Delete Day"
+                                    BackgroundColor="IndianRed"
+                                    Command="{Binding BindingContext.DeleteSessionCommand, Source={x:Reference Name=HistoryPageRoot}}"
+                                    CommandParameter="{Binding}" />
+                            </SwipeItems>
+                        </SwipeView.RightItems>
+
+                        <Grid ColumnDefinitions="*,Auto" Padding="8,4">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding BindingContext.OpenSessionCommand, Source={x:Reference Name=HistoryPageRoot}}"
+                                    CommandParameter="{Binding}" />
+                            </Grid.GestureRecognizers>
+
+                            <VerticalStackLayout>
+                                <Label Text="{Binding Title}" FontAttributes="Bold" />
+                                <Label Text="{Binding Subtitle}" FontSize="12" Opacity="0.7" />
+                            </VerticalStackLayout>
+                            <Label Grid.Column="1"
+                                   Text="{Binding SessionId}"
+                                   Opacity="0.4"
+                                   VerticalOptions="Center" />
+                        </Grid>
+                    </SwipeView>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
 
             <CollectionView.EmptyView>
-                <Label Text="No sessions yet." Opacity="0.6" HorizontalTextAlignment="Center" Margin="0,24,0,0"/>
+                <Label Text="No sessions yet."
+                       Opacity="0.6"
+                       HorizontalTextAlignment="Center"
+                       Margin="0,24,0,0" />
             </CollectionView.EmptyView>
         </CollectionView>
     </VerticalStackLayout>

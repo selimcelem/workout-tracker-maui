@@ -1,4 +1,5 @@
-﻿using SQLite;
+﻿// File: WorkoutTracker/Services/SessionService.cs
+using SQLite;
 using WorkoutTracker.Models;
 
 namespace WorkoutTracker.Services;
@@ -9,12 +10,19 @@ public interface ISessionService
     Task EndSessionAsync(int sessionId, string? notes = null);
     Task<WorkoutSession?> GetOpenSessionAsync();
     Task<List<WorkoutSession>> GetRecentAsync(int take = 20);
+    Task DeleteAsync(int sessionId);
 }
 
 public class SessionService : ISessionService
 {
     private readonly SQLiteAsyncConnection _conn;
-    public SessionService(SQLiteAsyncConnection conn) => _conn = conn;
+    private readonly ISetService _sets;
+
+    public SessionService(SQLiteAsyncConnection conn, ISetService sets)
+    {
+        _conn = conn;
+        _sets = sets;
+    }
 
     public async Task<WorkoutSession> StartSessionAsync(string? notes = null)
     {
@@ -28,6 +36,7 @@ public class SessionService : ISessionService
             Notes = notes,
             IsClosed = false
         };
+
         await _conn.InsertAsync(session);
         return session;
     }
@@ -44,9 +53,9 @@ public class SessionService : ISessionService
 
     public async Task<WorkoutSession?> GetOpenSessionAsync()
     {
-        var today = DateTime.UtcNow.Date;
+        var todayUtc = DateTime.UtcNow.Date;
         return await _conn.Table<WorkoutSession>()
-            .Where(s => !s.IsClosed && s.DateUtc >= today)
+            .Where(s => !s.IsClosed && s.DateUtc >= todayUtc)
             .OrderByDescending(s => s.Id)
             .FirstOrDefaultAsync();
     }
@@ -56,4 +65,11 @@ public class SessionService : ISessionService
              .OrderByDescending(s => s.DateUtc)
              .Take(take)
              .ToListAsync();
+
+    public async Task DeleteAsync(int sessionId)
+    {
+        // delete sets first, then the session.
+        await _sets.DeleteBySessionAsync(sessionId);
+        await _conn.DeleteAsync<WorkoutSession>(sessionId);
+    }
 }

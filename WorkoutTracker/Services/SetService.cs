@@ -15,6 +15,7 @@ public interface ISetService
 
     // All sets for the last session in which this exercise appeared (or empty if none)
     Task<IReadOnlyList<SetEntry>> GetLastSessionSetsForExerciseAsync(int exerciseId);
+    Task DeleteBySessionAsync(int sessionId);
 }
 
 public class SetService : ISetService
@@ -84,4 +85,7 @@ public class SetService : ISetService
 
         return sets;
     }
+    public Task DeleteBySessionAsync(int sessionId) =>
+    _conn.Table<SetEntry>()
+         .DeleteAsync(s => s.SessionId == sessionId);
 }

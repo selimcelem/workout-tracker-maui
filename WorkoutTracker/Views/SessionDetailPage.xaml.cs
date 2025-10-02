@@ -53,17 +53,36 @@ public partial class SessionDetailPage : ContentPage
 
             Sets.Add(new SetRow
             {
+                Id = entry.Id,
                 Time = entry.TimestampUtc.ToLocalTime().ToString("HH:mm"),
                 ExerciseName = exercise?.Name ?? $"Exercise #{entry.ExerciseId}",
                 Summary = summary
             });
         }
     }
+    private async void OnDeleteSetInvoked(object sender, EventArgs e)
+    {
+        if (sender is not SwipeItem swipeItem) return;
+        if (swipeItem.BindingContext is not SetRow row) return;
+
+        var confirm = await DisplayAlert("Delete set",
+            $"Delete {row.ExerciseName}?\n{row.Summary}", "Delete", "Cancel");
+        if (!confirm) return;
+
+        // delete from DB
+        await _sets.DeleteAsync(row.Id);
+
+        // delete from UI
+        var match = Sets.FirstOrDefault(s => s.Id == row.Id);
+        if (match != null) Sets.Remove(match);
+    }
 }
 
 public class SetRow
 {
-    public string Time { get; set; } = "";
-    public string ExerciseName { get; set; } = "";
-    public string Summary { get; set; } = "";
+    public int Id { get; set; }
+    public string Time { get; set; }
+    public string ExerciseName { get; set; }
+    public string Summary { get; set; }
 }
+

@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using WorkoutTracker.Models;
 using WorkoutTracker.Services;
 
 namespace WorkoutTracker.ViewModels;
@@ -10,10 +11,9 @@ public partial class HistoryViewModel : ObservableObject
     private readonly ISessionService _sessionService;
     private readonly ISetService _setService;
 
-    [ObservableProperty] private bool isBusy;
-    [ObservableProperty] private string? status;
-
+    // Explicit properties (avoid source-generator issues)
     public ObservableCollection<SessionListItem> RecentSessions { get; } = new();
+    public SessionListItem? SelectedSession { get; set; }
 
     public HistoryViewModel(ISessionService sessionService, ISetService setService)
     {
@@ -21,45 +21,66 @@ public partial class HistoryViewModel : ObservableObject
         _setService = setService;
     }
 
-    public async Task LoadAsync()
+    // Load recent sessions with their set counts
+    [RelayCommand]
+    public async Task LoadAsync(int take = 30)
     {
-        if (IsBusy) return;
-        try
+        RecentSessions.Clear();
+
+        var sessions = await _sessionService.GetRecentAsync(take) ?? new List<WorkoutSession>();
+
+        foreach (var s in sessions.OrderByDescending(s => s.DateUtc))
         {
-            IsBusy = true;
-            Status = "Loading...";
+            var sets = await _setService.GetBySessionAsync(s.Id) ?? new List<SetEntry>();
+            var setCount = sets.Count;
 
-            RecentSessions.Clear();
+            var title = s.DateUtc.ToLocalTime().ToString("dddd, dd MMM yyyy HH:mm");
+            var subtitle = setCount == 1 ? "1 set" : $"{setCount} sets";
+            if (!string.IsNullOrWhiteSpace(s.Notes))
+                subtitle += " • notes";
 
-            var recent = await _sessionService.GetRecentAsync(30);
-            foreach (var s in recent)
+            RecentSessions.Add(new SessionListItem
             {
-                var sets = await _setService.GetBySessionAsync(s.Id);
-                RecentSessions.Add(new SessionListItem
-                {
-                    Id = s.Id,
-                    Title = s.DateUtc.ToLocalTime().ToString("dddd, dd MMM yyyy HH:mm"),
-                    Subtitle = sets.Count == 1 ? "1 set" : $"{sets.Count} sets",
-                    Notes = s.Notes
-                });
-            }
-
-            Status = RecentSessions.Count == 0 ? "No sessions yet." : null;
-        }
-        finally
-        {
-            IsBusy = false;
+                SessionId = s.Id,
+                DateUtc = s.DateUtc,
+                Title = title,
+                Subtitle = subtitle
+            });
         }
     }
 
+    // Open a session details page
     [RelayCommand]
-    private async Task Refresh() => await LoadAsync();
-}
+    private async Task OpenSession(SessionListItem? item)
+    {
+        if (item == null) return;
+        SelectedSession = null; // clear selection so reselect works
+        await Shell.Current.GoToAsync($"SessionDetailPage?sessionId={item.SessionId}");
+    }
 
-public class SessionListItem
-{
-    public int Id { get; set; }
-    public string Title { get; set; } = "";
-    public string Subtitle { get; set; } = "";
-    public string? Notes { get; set; }
+    // Delete entire session (all sets + session)
+    [RelayCommand]
+    private async Task DeleteSession(SessionListItem? item)
+    {
+        if (item == null) return;
+
+        var ok = await Shell.Current.DisplayAlert(
+            "Delete session",
+            $"Delete session on {item.DateUtc.ToLocalTime():yyyy-MM-dd} and all its sets?",
+            "Delete", "Cancel");
+        if (!ok) return;
+
+        await _setService.DeleteBySessionAsync(item.SessionId);
+        await _sessionService.DeleteAsync(item.SessionId);
+
+        RecentSessions.Remove(item);
+    }
+
+    public class SessionListItem
+    {
+        public int SessionId { get; set; }
+        public DateTime DateUtc { get; set; }
+        public string Title { get; set; } = "";
+        public string Subtitle { get; set; } = "";
+    }
 }

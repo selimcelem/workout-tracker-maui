@@ -17,13 +17,23 @@
 
         <CollectionView.ItemTemplate>
             <DataTemplate>
-                <Grid Padding="8"
-                      ColumnDefinitions="Auto,*,Auto"
-                      ColumnSpacing="12">
-                    <Label Text="{Binding Time}" />
-                    <Label Grid.Column="1" Text="{Binding ExerciseName}" />
-                    <Label Grid.Column="2" Text="{Binding Summary}" />
-                </Grid>
+                <SwipeView>
+                    <SwipeView.RightItems>
+                        <SwipeItems Mode="Reveal">
+                            <SwipeItem Text="Delete"
+                     BackgroundColor="IndianRed"
+                     Invoked="OnDeleteSetInvoked" />
+                        </SwipeItems>
+                    </SwipeView.RightItems>
+
+                    <Grid Padding="8"
+            ColumnDefinitions="Auto,*,Auto"
+            ColumnSpacing="12">
+                        <Label Text="{Binding Time}" />
+                        <Label Grid.Column="1" Text="{Binding ExerciseName}" />
+                        <Label Grid.Column="2" Text="{Binding Summary}" />
+                    </Grid>
+                </SwipeView>
             </DataTemplate>
         </CollectionView.ItemTemplate>
     </CollectionView>
