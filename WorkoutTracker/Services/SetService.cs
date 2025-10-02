@@ -12,6 +12,9 @@ public interface ISetService
 
     // NEW: fetch sets for an exercise since a given UTC date
     Task<List<SetEntry>> GetByExerciseSinceAsync(int exerciseId, DateTime sinceUtc);
+
+    // All sets for the last session in which this exercise appeared (or empty if none)
+    Task<IReadOnlyList<SetEntry>> GetLastSessionSetsForExerciseAsync(int exerciseId);
 }
 
 public class SetService : ISetService
@@ -60,4 +63,25 @@ public class SetService : ISetService
              .Where(s => s.ExerciseId == exerciseId && s.TimestampUtc >= sinceUtc)
              .OrderBy(s => s.TimestampUtc)
              .ToListAsync();
+
+    // NEW: all sets for the most recent session in which this exercise appeared
+    public async Task<IReadOnlyList<SetEntry>> GetLastSessionSetsForExerciseAsync(int exerciseId)
+    {
+        // 1) find the latest set for this exercise
+        var latest = await _conn.Table<SetEntry>()
+                                .Where(s => s.ExerciseId == exerciseId)
+                                .OrderByDescending(s => s.TimestampUtc)
+                                .FirstOrDefaultAsync();
+
+        if (latest == null)
+            return Array.Empty<SetEntry>();
+
+        // 2) get all sets from that same session
+        var sets = await _conn.Table<SetEntry>()
+                              .Where(s => s.SessionId == latest.SessionId && s.ExerciseId == exerciseId)
+                              .OrderBy(s => s.SetNumber)
+                              .ToListAsync();
+
+        return sets;
+    }
 }
