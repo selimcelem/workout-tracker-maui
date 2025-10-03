@@ -8,4 +8,7 @@ public class Exercise
     [Unique, NotNull] public string Name { get; set; } = "";
     public string? BodyPart { get; set; }
     public string? Notes { get; set; }
+
+    // Optional link to a category
+    public int? CategoryId { get; set; }
 }

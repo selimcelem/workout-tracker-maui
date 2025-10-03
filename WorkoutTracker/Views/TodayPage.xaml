@@ -26,11 +26,66 @@
                     Command="{Binding EndSessionCommand}"
                     IsVisible="{Binding HasActiveSession}" />
 
-            <!-- Exercise picker -->
-            <Picker Title="Exercise"
+            <!-- Category picker -->
+            <Picker Title="Category"
+                    ItemsSource="{Binding CategoryOptions}"
+                    ItemDisplayBinding="{Binding Name}"
+                    SelectedItem="{Binding SelectedCategory}" />
+            
+            <!-- Category actions -->
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="Add"
+                        Command="{Binding AddCategoryCommand}" />
+                <Button Text="Rename"
+                        Command="{Binding RenameCategoryCommand}"
+                        IsEnabled="{Binding SelectedCategory}" />
+                <Button Text="Delete"
+                        Command="{Binding DeleteCategoryCommand}"
+                        IsEnabled="{Binding SelectedCategory}" />
+            </HorizontalStackLayout>
+           
+                <!-- Category + Exercise pickers -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Picker Grid.Column="0"
+                    Title="Category"
+                    ItemsSource="{Binding CategoryOptions}"
+                    ItemDisplayBinding="{Binding Name}"
+                    SelectedItem="{Binding SelectedCategory}" />
+
+                <Picker Grid.Column="1"
+                    Title="Exercise"
                     ItemsSource="{Binding ExerciseOptions}"
                     ItemDisplayBinding="{Binding Name}"
                     SelectedItem="{Binding SelectedExercise}" />
+                </Grid>
+
+                <!-- Compact actions so they don’t run off-screen -->
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="Add exercise"
+                    Command="{Binding AddExerciseCommand}"
+                    LineBreakMode="TailTruncation"
+                    HorizontalOptions="Start" />
+
+                    <Button Text="Rename"
+                    Command="{Binding RenameExerciseCommand}"
+                    IsEnabled="{Binding SelectedExercise, Converter={StaticResource NullToBoolConverter}}" />
+
+                    <Button Text="Move"
+                    Command="{Binding MoveExerciseCommand}"
+                    IsEnabled="{Binding SelectedExercise, Converter={StaticResource NullToBoolConverter}}" />
+                </HorizontalStackLayout>
+
+
+                <!-- Exercise quick actions -->
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="Rename exercise"
+                    Command="{Binding RenameExerciseCommand}"
+                    IsEnabled="{Binding SelectedExercise, Converter={StaticResource NullToBoolConverter}}" />
+                    <Button Text="Move to category"
+                    Command="{Binding MoveExerciseCommand}"
+                    IsEnabled="{Binding SelectedExercise, Converter={StaticResource NullToBoolConverter}}" />
+                </HorizontalStackLayout>
+
 
             <!-- Inputs: reps + weight -->
             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
@@ -51,7 +106,7 @@
                     ItemsSource="{Binding RpeOptions}"
                     ItemDisplayBinding="{Binding Display}"
                     SelectedItem="{Binding SelectedRpe}"
-                    HorizontalOptions="FillAndExpand" />
+                    HorizontalOptions="Fill" />
 
             <Button Text="Add Set"
                     Command="{Binding AddSetCommand}"
@@ -100,7 +155,6 @@
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
-
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

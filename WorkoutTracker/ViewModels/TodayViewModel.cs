@@ -11,6 +11,18 @@ public partial class TodayViewModel : ObservableObject
     private readonly ISessionService _sessions;
     private readonly ISetService _sets;
     private readonly IExerciseService _exercises;
+    private readonly ICategoryService _categories;
+
+    public TodayViewModel(ISessionService sessions,
+        ISetService sets,
+        IExerciseService exercises,
+        ICategoryService categories)
+    {
+        _sessions = sessions;
+        _sets = sets;
+        _exercises = exercises;
+        _categories = categories;
+    }
 
     // Track the last prefilled recommendation to judge success/failure
     private int? _lastRecommendedReps;
@@ -29,8 +41,19 @@ public partial class TodayViewModel : ObservableObject
 
     // --- UI state ---
     [ObservableProperty] private WorkoutSession? currentSession;
+
+    [ObservableProperty] private ObservableCollection<WorkoutCategory> categoryOptions = new();
+    [ObservableProperty] private WorkoutCategory? selectedCategory;
+
     [ObservableProperty] private ObservableCollection<Exercise> exerciseOptions = new();
     [ObservableProperty] private Exercise? selectedExercise;
+
+    // react to category change > filter exercises
+
+    partial void OnSelectedCategoryChanged(WorkoutCategory? value)
+    {
+        _= FilterExercisesForCategoryAsync(value);
+    }
     partial void OnSelectedExerciseChanged(Exercise? value)
     {
         _ = RecommendFromLastSessionAsync(value);
@@ -41,6 +64,30 @@ public partial class TodayViewModel : ObservableObject
     // Reps/Weight as strings so placeholders show and Entry.Text never throws
     [ObservableProperty] private string reps = string.Empty;
     [ObservableProperty] private string weightText = string.Empty;
+
+    private async Task FilterExercisesForCategoryAsync(WorkoutCategory? cat)
+    {
+        var all = await _exercises.GetAllAsync();
+
+        if (cat == null)
+        {
+            ExerciseOptions = new ObservableCollection<Exercise>(all.OrderBy(e => e.Name));
+            SelectedExercise = ExerciseOptions.FirstOrDefault();
+            return;
+        }
+
+        var filtered = all.Where(e => e.CategoryId == cat.Id)
+                          .OrderBy(e => e.Name)
+                          .ToList();
+
+        // If no exercises are tagged yet for this category, fall back to all so the picker isn’t empty
+        if (filtered.Count == 0)
+            filtered = all.OrderBy(e => e.Name).ToList();
+
+        ExerciseOptions = new ObservableCollection<Exercise>(filtered);
+        SelectedExercise = ExerciseOptions.FirstOrDefault();
+    }
+
 
     // RPE (0–10) as number + description for Picker popup
     public sealed class RpeOption
@@ -67,21 +114,24 @@ public partial class TodayViewModel : ObservableObject
     // Rendered list for "Today"
     [ObservableProperty] private ObservableCollection<SetDisplay> todaysSets = new();
 
-    public TodayViewModel(ISessionService sessions, ISetService sets, IExerciseService exercises)
-    {
-        _sessions = sessions;
-        _sets = sets;
-        _exercises = exercises;
-    }
-
     // Load current session + exercises + existing sets
     [RelayCommand]
     public async Task Load()
     {
-        CurrentSession = await _sessions.GetOpenSessionAsync();
+        // Ensure defaults exist (method should be idempotent)
+        await _categories.SeedDefaultsAsync();
 
-        var options = await _exercises.GetAllAsync();
-        ExerciseOptions = new ObservableCollection<Exercise>(options);
+        // 1) Load categories
+        var cats = await _categories.GetAllAsync();
+        CategoryOptions = new ObservableCollection<WorkoutCategory>(cats);
+        if (SelectedCategory == null)
+            SelectedCategory = CategoryOptions.FirstOrDefault();
+
+        // 2) Load exercises filtered by category
+        await FilterExercisesForCategoryAsync(SelectedCategory);
+
+        // 3) Load session + sets (unchanged)
+        CurrentSession = await _sessions.GetOpenSessionAsync();
 
         if (CurrentSession != null)
         {
@@ -107,6 +157,26 @@ public partial class TodayViewModel : ObservableObject
             TodaysSets.Clear();
             HasActiveSession = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task AddExercise()
+    {
+        if (SelectedCategory == null)
+        {
+            await Shell.Current.DisplayAlert("Pick a category", "Select a category first.", "OK");
+            return;
+        }
+
+        var name = await Shell.Current.DisplayPromptAsync("New Exercise", $"Add to: {SelectedCategory.Name}", "Add", "Cancel", "Exercise name");
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        // Create the exercise tagged to this category
+        var added = await _exercises.AddAsync(name.Trim(), SelectedCategory.Id);
+
+        // Reload list and select the newly added exercise
+        await FilterExercisesForCategoryAsync(SelectedCategory);
+        SelectedExercise = ExerciseOptions.FirstOrDefault(e => e.Id == added.Id);
     }
 
     [RelayCommand]
@@ -210,6 +280,147 @@ public partial class TodayViewModel : ObservableObject
         await _sets.DeleteAsync(item.Id);
         TodaysSets.Remove(item);
     }
+
+    [RelayCommand]
+    private async Task AddCategory()
+    {
+        var name = await Shell.Current.DisplayPromptAsync("New Category", "Name", "Add", "Cancel", "e.g. Push Day");
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        WorkoutCategory added;
+        try
+        {
+            added = await _categories.AddAsync(name.Trim());
+        }
+        catch (Exception ex)
+        {
+            await Shell.Current.DisplayAlert("Error", ex.Message, "OK");
+            return;
+        }
+
+        // Refresh list and select
+        var cats = await _categories.GetAllAsync();
+        CategoryOptions = new ObservableCollection<WorkoutCategory>(cats);
+        SelectedCategory = CategoryOptions.FirstOrDefault(c => c.Id == added.Id);
+    }
+
+    [RelayCommand]
+    private async Task RenameCategory()
+    {
+        if (SelectedCategory == null) return;
+
+        var newName = await Shell.Current.DisplayPromptAsync("Rename Category", "New name", "Save", "Cancel", initialValue: SelectedCategory.Name);
+        if (string.IsNullOrWhiteSpace(newName)) return;
+
+        try
+        {
+            await _categories.RenameAsync(SelectedCategory.Id, newName.Trim());
+        }
+        catch (Exception ex)
+        {
+            await Shell.Current.DisplayAlert("Error", ex.Message, "OK");
+            return;
+        }
+
+        // Refresh list and keep selection on this category
+        var id = SelectedCategory.Id;
+        var cats = await _categories.GetAllAsync();
+        CategoryOptions = new ObservableCollection<WorkoutCategory>(cats);
+        SelectedCategory = CategoryOptions.FirstOrDefault(c => c.Id == id);
+    }
+
+    [RelayCommand]
+    private async Task DeleteCategory()
+    {
+        if (SelectedCategory == null) return;
+
+        var confirm = await Shell.Current.DisplayAlert(
+            "Delete Category",
+            $"Delete '{SelectedCategory.Name}'? Exercises in it will remain available (uncategorized).",
+            "Delete", "Cancel");
+        if (!confirm) return;
+
+        try
+        {
+            await _exercises.UnassignAllInCategoryAsync(SelectedCategory.Id); // detach exercises
+            await _categories.DeleteAsync(SelectedCategory.Id);                // remove category
+        }
+        catch (Exception ex)
+        {
+            await Shell.Current.DisplayAlert("Error", ex.Message, "OK");
+            return;
+        }
+
+        // Refresh list + selection
+        var cats = await _categories.GetAllAsync();
+        CategoryOptions = new ObservableCollection<WorkoutCategory>(cats);
+        SelectedCategory = CategoryOptions.FirstOrDefault(); // may be null if none remain
+        await FilterExercisesForCategoryAsync(SelectedCategory);
+    }
+    [RelayCommand]
+    private async Task RenameExercise()
+    {
+        if (SelectedExercise == null) return;
+
+        var newName = await Shell.Current.DisplayPromptAsync(
+            "Rename Exercise", "New name", "Save", "Cancel", initialValue: SelectedExercise.Name);
+        if (string.IsNullOrWhiteSpace(newName)) return;
+
+        try
+        {
+            await _exercises.RenameAsync(SelectedExercise.Id, newName.Trim());
+        }
+        catch (Exception ex)
+        {
+            await Shell.Current.DisplayAlert("Error", ex.Message, "OK");
+            return;
+        }
+
+        // Refresh current category’s list and keep selection
+        var id = SelectedExercise.Id;
+        await FilterExercisesForCategoryAsync(SelectedCategory);
+        SelectedExercise = ExerciseOptions.FirstOrDefault(e => e.Id == id);
+    }
+
+    [RelayCommand]
+    private async Task MoveExercise()
+    {
+        if (SelectedExercise == null) return;
+
+        var currentExerciseId = SelectedExercise.Id;
+
+        // Pick a category to move to
+        var cats = CategoryOptions?.ToList() ?? new();
+        if (cats.Count == 0)
+        {
+            await Shell.Current.DisplayAlert("No categories", "Create a category first.", "OK");
+            return;
+        }
+
+        // Simple picker via DisplayActionSheet
+        var names = cats.Select(c => c.Name).ToArray();
+        var chosen = await Shell.Current.DisplayActionSheet("Move to category", "Cancel", null, names);
+        if (string.IsNullOrEmpty(chosen) || chosen == "Cancel") return;
+
+        var target = cats.First(c => c.Name == chosen);
+
+        try
+        {
+            await _exercises.ReassignCategoryAsync(SelectedExercise.Id, target.Id);
+        }
+        catch (Exception ex)
+        {
+            await Shell.Current.DisplayAlert("Error", ex.Message, "OK");
+            return;
+        }
+
+        // Refresh lists: show target category and the moved exercise
+        SelectedCategory = target;
+        await FilterExercisesForCategoryAsync(SelectedCategory);
+        SelectedExercise = ExerciseOptions.FirstOrDefault(e => e.Id == SelectedExercise.Id);
+    }
+
+
 
     public class SetDisplay
     {

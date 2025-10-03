@@ -3,7 +3,7 @@ using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Storage;
 using SQLite;
 using System.IO;
-
+using WorkoutTracker.Models;
 using WorkoutTracker.Services;
 using WorkoutTracker.ViewModels;
 using WorkoutTracker.Views;
@@ -31,8 +31,30 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // SQLite connection
+        // SQLite connections
         var dbPath = Path.Combine(FileSystem.AppDataDirectory, "workouts.db");
+
+        // 1) Use a synchronous connection just for schema/migrations (no async blocking on UI thread)
+        using (var sync = new SQLiteConnection(dbPath))
+        {
+            sync.CreateTable<Exercise>();
+            sync.CreateTable<WorkoutSession>();
+            sync.CreateTable<SetEntry>();
+
+            // One-time migration: add CategoryId to Exercise if it doesn't exist
+            try
+            {
+                sync.Execute("ALTER TABLE Exercise ADD COLUMN CategoryId INTEGER;");
+            }
+            catch
+            {
+                // Column already exists → ignore
+            }
+
+            sync.CreateTable<WorkoutCategory>();
+        }
+
+        // 2) Use the normal async connection for the rest of the app
         var conn = new SQLiteAsyncConnection(dbPath);
 
         // Core singletons
@@ -43,7 +65,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<IExerciseService, ExerciseService>();
         builder.Services.AddSingleton<ISessionService, SessionService>();
         builder.Services.AddSingleton<ISetService, SetService>();
-
+        builder.Services.AddSingleton<ICategoryService, CategoryService>();
+        
         // ViewModels
         builder.Services.AddTransient<ExercisesViewModel>();
         builder.Services.AddTransient<TodayViewModel>();
@@ -57,6 +80,8 @@ public static class MauiProgram
         builder.Services.AddTransient<SessionDetailPage>();
         builder.Services.AddTransient<ChartsPage>();
 
-        return builder.Build();
+        var app = builder.Build();
+
+        return app;
     }
 }
