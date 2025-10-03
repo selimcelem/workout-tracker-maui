@@ -172,12 +172,25 @@ public partial class TodayViewModel : ObservableObject
         var name = await Shell.Current.DisplayPromptAsync("New Exercise", $"Add to: {SelectedCategory.Name}", "Add", "Cancel", "Exercise name");
         if (string.IsNullOrWhiteSpace(name)) return;
 
-        // Create the exercise tagged to this category
-        var added = await _exercises.AddAsync(name.Trim(), SelectedCategory.Id);
+        var trimmed = name.Trim();
 
+        // 1) Reuse if it already exists (case-insensitive)
+        var existing = await _exercises.GetByNameAsync(trimmed);
+        Exercise target;
+
+        if (existing != null)
+        {
+            await _exercises.ReassignCategoryAsync(existing.Id, SelectedCategory.Id);
+            target = existing;
+        }
+        else
+        {
+            target = await _exercises.AddAsync(trimmed, SelectedCategory.Id);
+        }
+       
         // Reload list and select the newly added exercise
         await FilterExercisesForCategoryAsync(SelectedCategory);
-        SelectedExercise = ExerciseOptions.FirstOrDefault(e => e.Id == added.Id);
+        SelectedExercise = ExerciseOptions.FirstOrDefault(e => e.Id == target.Id);
     }
 
     [RelayCommand]
