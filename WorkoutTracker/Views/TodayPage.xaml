@@ -26,11 +26,10 @@
                     Command="{Binding EndSessionCommand}"
                     IsVisible="{Binding HasActiveSession}" />
 
-            <!-- Category picker -->
-            <Picker Title="Category"
-                    ItemsSource="{Binding CategoryOptions}"
-                    ItemDisplayBinding="{Binding Name}"
-                    SelectedItem="{Binding SelectedCategory}" />
+            <!-- Category label -->
+            <Label Text="Category:" 
+                   FontAttributes="Bold" 
+                   Margin="0,8,0,0" />
             
             <!-- Category actions -->
             <HorizontalStackLayout Spacing="8">
