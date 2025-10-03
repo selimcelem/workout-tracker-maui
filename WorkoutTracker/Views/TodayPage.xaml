@@ -38,13 +38,13 @@
                         Command="{Binding AddCategoryCommand}" />
                 <Button Text="Rename"
                         Command="{Binding RenameCategoryCommand}"
-                        IsEnabled="{Binding SelectedCategory}" />
+                        IsEnabled="{Binding SelectedCategory, Converter={StaticResource NullToBoolConverter}}" />
                 <Button Text="Delete"
                         Command="{Binding DeleteCategoryCommand}"
-                        IsEnabled="{Binding SelectedCategory}" />
+                        IsEnabled="{Binding SelectedCategory, Converter={StaticResource NullToBoolConverter}}" />
             </HorizontalStackLayout>
            
-                <!-- Category + Exercise pickers -->
+            <!-- Category + Exercise pickers side by side -->
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                 <Picker Grid.Column="0"
                     Title="Category"
@@ -59,33 +59,27 @@
                     SelectedItem="{Binding SelectedExercise}" />
                 </Grid>
 
-                <!-- Compact actions so they don’t run off-screen -->
-                <HorizontalStackLayout Spacing="8">
+            <!-- If no exercises in this category, show a prompt -->
+                <HorizontalStackLayout Spacing="8"
+                            IsVisible="{Binding HasExercisesInCategory, Converter={StaticResource InverseBoolConverter}}">
+                    <Label Text="No exercises in this category yet." Opacity="0.7" />
                     <Button Text="Add exercise"
-                    Command="{Binding AddExerciseCommand}"
-                    LineBreakMode="TailTruncation"
-                    HorizontalOptions="Start" />
-
-                    <Button Text="Rename"
-                    Command="{Binding RenameExerciseCommand}"
-                    IsEnabled="{Binding SelectedExercise, Converter={StaticResource NullToBoolConverter}}" />
-
-                    <Button Text="Move"
-                    Command="{Binding MoveExerciseCommand}"
-                    IsEnabled="{Binding SelectedExercise, Converter={StaticResource NullToBoolConverter}}" />
+                Command="{Binding AddExerciseCommand}" />
                 </HorizontalStackLayout>
 
-
-                <!-- Exercise quick actions -->
-                <HorizontalStackLayout Spacing="8">
-                    <Button Text="Rename exercise"
-                    Command="{Binding RenameExerciseCommand}"
-                    IsEnabled="{Binding SelectedExercise, Converter={StaticResource NullToBoolConverter}}" />
-                    <Button Text="Move to category"
-                    Command="{Binding MoveExerciseCommand}"
-                    IsEnabled="{Binding SelectedExercise, Converter={StaticResource NullToBoolConverter}}" />
+            <!-- Compact exercise actions (only when there are exercises) -->
+                <HorizontalStackLayout Spacing="8"
+                            IsVisible ="{Binding HasExercisesInCategory}">
+                <Button Text="Add exercise"
+                            Command="{Binding AddExerciseCommand}"
+                            LineBreakMode="TailTruncation" />
+                <Button Text="Rename"
+                            Command="{Binding RenameExerciseCommand}"
+                            IsEnabled="{Binding SelectedExercise, Converter={StaticResource NullToBoolConverter}}" />
+                <Button Text="Move"
+                            Command="{Binding MoveExerciseCommand}"
+                            IsEnabled="{Binding SelectedExercise, Converter={StaticResource NullToBoolConverter}}" />
                 </HorizontalStackLayout>
-
 
             <!-- Inputs: reps + weight -->
             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">

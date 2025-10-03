@@ -65,26 +65,27 @@ public partial class TodayViewModel : ObservableObject
     [ObservableProperty] private string reps = string.Empty;
     [ObservableProperty] private string weightText = string.Empty;
 
+    [ObservableProperty] private bool hasExercisesInCategory;
+
     private async Task FilterExercisesForCategoryAsync(WorkoutCategory? cat)
     {
         var all = await _exercises.GetAllAsync();
 
+        List<Exercise> list;
         if (cat == null)
         {
-            ExerciseOptions = new ObservableCollection<Exercise>(all.OrderBy(e => e.Name));
-            SelectedExercise = ExerciseOptions.FirstOrDefault();
-            return;
+            list = all.OrderBy(e => e.Name).ToList();
+        }
+        else
+        {
+            list = all.Where(e => e.CategoryId == cat.Id)
+                      .OrderBy(e => e.Name)
+                      .ToList();
         }
 
-        var filtered = all.Where(e => e.CategoryId == cat.Id)
-                          .OrderBy(e => e.Name)
-                          .ToList();
+        ExerciseOptions = new ObservableCollection<Exercise>(list);
+        HasExercisesInCategory = ExerciseOptions.Count > 0;
 
-        // If no exercises are tagged yet for this category, fall back to all so the picker isn’t empty
-        if (filtered.Count == 0)
-            filtered = all.OrderBy(e => e.Name).ToList();
-
-        ExerciseOptions = new ObservableCollection<Exercise>(filtered);
         SelectedExercise = ExerciseOptions.FirstOrDefault();
     }
 
