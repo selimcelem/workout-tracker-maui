@@ -81,8 +81,8 @@ public partial class SessionDetailPage : ContentPage
 public class SetRow
 {
     public int Id { get; set; }
-    public string Time { get; set; }
-    public string ExerciseName { get; set; }
-    public string Summary { get; set; }
+    public string Time { get; set; } = string.Empty;
+    public string ExerciseName { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
 }
 

@@ -3,6 +3,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WorkoutTracker.Models;
 using WorkoutTracker.Services;
+using System.Linq;
+using System.Globalization;
+
 
 namespace WorkoutTracker.ViewModels;
 
@@ -29,6 +32,15 @@ public partial class TodayViewModel : ObservableObject
     private double? _lastRecommendedWeight;
     private static double RoundToStep(double value, double stepKg)
     => Math.Round(value / stepKg, MidpointRounding.AwayFromZero) * stepKg;
+    private const int TargetRepsLow = 8;
+    private const int TargetRepsHigh = 12;
+    private const double TargetRir = 2.0;   // ≈ RPE 8
+    private const double MaxStepUpPct = 0.06;  // +6% cap
+    private const double MaxStepDnPct = 0.08;  // -8% cap
+    private const double FatigueDropPct = 0.07;
+    private const double RoundStepKg = 2.5;
+    private const double MinDeltaKg = 5.0;
+
 
     private static double EnforceMinDelta(double newWeight, double lastWeight, double minDeltaKg)
     {
@@ -485,118 +497,205 @@ public partial class TodayViewModel : ObservableObject
         public double Weight { get; set; }
         public double? Rpe { get; set; }
     }
+
+    // Smarter recommendation logic:
     private async Task RecommendFromLastSessionAsync(Exercise? exercise)
     {
         if (exercise == null) return;
 
-        IReadOnlyList<SetEntry> lastSessionSets;
+        IReadOnlyList<SetEntry> history;
         try
         {
-            lastSessionSets = await _sets.GetLastSessionSetsForExerciseAsync(exercise.Id);
+            history = await _sets.GetLastSessionSetsForExerciseAsync(exercise.Id);
         }
         catch
         {
-            return; // DB/service issue → keep placeholders
+            return;
         }
 
-        if (lastSessionSets == null || lastSessionSets.Count == 0)
-            return;
-
-        // Baseline from LAST SESSION
-        var working = lastSessionSets
-            .Where(s => s.Rpe.HasValue && s.Rpe.Value >= 7 && s.Rpe.Value <= 9)
-            .ToList();
-
-        var basis = working.Count > 0 ? working : lastSessionSets;
-
-        // weight = mode (most frequent) of basis; reps = median for that weight
+        // We'll assign to these in either branch (avoid redeclaring twice)
         double chosenWeight;
         int chosenReps;
 
-        var groupedByWeight = basis
-            .GroupBy(s => Math.Round(s.Weight, 3))
-            .OrderByDescending(g => g.Count())
-            .ThenByDescending(g => g.Key)
-            .ToList();
-
-        if (groupedByWeight.Count > 0)
-        {
-            var topGroup = groupedByWeight[0];
-            chosenWeight = topGroup.Key;
-            var repsList = topGroup.Select(s => s.Reps).OrderBy(r => r).ToList();
-            chosenReps = repsList[repsList.Count / 2];
-        }
-        else
-        {
-            chosenWeight = basis.Max(s => s.Weight);
-            var repsList = basis.Select(s => s.Reps).OrderBy(r => r).ToList();
-            chosenReps = repsList[repsList.Count / 2];
-        }
-
-        // Average RPE across basis → gentle nudge
-        var avgRpe = basis.Where(s => s.Rpe.HasValue).Select(s => s.Rpe!.Value).DefaultIfEmpty(8.0).Average();
-        if (avgRpe <= 6.0)
-        {
-            chosenWeight *= 1.02;   // +2%
-            chosenReps = Math.Max(1, chosenReps + 1);
-        }
-        else if (avgRpe >= 8.5)
-        {
-            chosenWeight *= 0.98;   // -2%
-            if (chosenReps > 1) chosenReps -= 1;
-        }
-
-        // Reactive adjustment from TODAY — reuse a single lastToday variable
+        // Latest set for this exercise today (if any)
         var lastToday = TodaysSets
             .Where(s => string.Equals(s.ExerciseName, exercise.Name, StringComparison.Ordinal))
             .OrderByDescending(s => s.SetNumber)
             .FirstOrDefault();
 
+        // If no history and nothing today -> conservative starting point (unless user already typed a weight)
+        if ((history == null || history.Count == 0) && lastToday == null)
+        {
+            chosenWeight = (double.TryParse(WeightText, out var w) && w > 0) ? w : 20.0;
+            chosenReps = Math.Max(TargetRepsLow, 8);
+
+            chosenWeight = RoundToStep(chosenWeight, RoundStepKg);
+            Reps = chosenReps.ToString();
+            WeightText = chosenWeight.ToString("0.##", CultureInfo.InvariantCulture);
+            _lastRecommendedReps = chosenReps;
+            _lastRecommendedWeight = chosenWeight;
+            return;
+        }
+
+        // Build a small recent snapshot
+        var recent = (history ?? Array.Empty<SetEntry>())
+            .OrderByDescending(s => s.TimestampUtc)
+            .Take(6)
+            .ToList();
+
+        // Choose an anchor performance (today if available; else most recent from history)
+        Performance anchor;
         if (lastToday != null)
         {
-            var lastTodayRpe = lastToday.Rpe ?? 8.0;
-
-            // If last set was MAX effort or clearly tough → do NOT increase; gently decrease
-            if (lastTodayRpe >= 9.0)
+            anchor = new Performance
             {
-                chosenWeight *= 0.95; // -5%
-                chosenReps = Math.Max(1, Math.Min(chosenReps, lastToday.Reps - 1));
-            }
-            // If last set was very easy → small increase
-            else if (lastTodayRpe <= 4.0)
-            {
-                chosenWeight *= 1.03; // +3%
-                chosenReps = Math.Max(chosenReps, lastToday.Reps + 1);
-            }
-            else if (lastTodayRpe >= 7.0 && lastTodayRpe <= 8.5)
-            {
-                // Stay near what you just did if it was a good working effort
-                chosenReps = Math.Max(chosenReps, lastToday.Reps);
-                chosenWeight = Math.Max(chosenWeight, lastToday.Weight);
-            }
-
-            // Consider underperforming relative to our last recommendation (if we had one)
-            if (_lastRecommendedReps.HasValue && lastToday.Reps < (int)Math.Ceiling(_lastRecommendedReps.Value * 0.75))
-            {
-                // Significant underperformance → reduce weight and avoid rep increases
-                chosenWeight *= 0.95;
-                chosenReps = Math.Min(chosenReps, lastToday.Reps);
-            }
+                Weight = lastToday.Weight,
+                Reps = lastToday.Reps,
+                Rpe = lastToday.Rpe
+            };
         }
-
-        // If we have a set for this exercise today, enforce a minimum ±5 kg change when adjusting
-        if (lastToday != null && !chosenWeight.Equals(lastToday.Weight))
+        else
         {
-            chosenWeight = EnforceMinDelta(chosenWeight, lastToday.Weight, minDeltaKg: 5.0);
+            var h = recent.First(); // safe because we returned earlier when both were empty
+            anchor = new Performance
+            {
+                Weight = h.Weight,
+                Reps = h.Reps,
+                Rpe = h.Rpe
+            };
         }
 
-        // Round to practical plate steps (2.5 kg increments)
-        chosenWeight = RoundToStep(chosenWeight, stepKg: 2.5);
+        // Estimate current e1RM from anchor
+        var anchorE1 = EstimateE1Rm(anchor.Weight, anchor.Reps, anchor.Rpe);
 
-        // Prefill UI and store this recommendation for the next evaluation
+        // Aim for mid-range reps at target RIR
+        int targetReps = (TargetRepsLow + TargetRepsHigh) / 2; // e.g., 10
+        double inferredRir = InferRirFromReps(anchor.Reps, targetReps, anchor.Rpe);
+
+        // Predict weight for that goal
+        double rawSuggested = WeightForRepsAtRir(anchorE1, targetReps, TargetRir);
+
+        // Directional bias: if easier than desired (inferredRir > TargetRir) → increase;
+        // if harder than desired (inferredRir < TargetRir) → decrease.
+        var bias = Math.Clamp((inferredRir - TargetRir) * 0.02, -MaxStepDnPct, MaxStepUpPct);
+        rawSuggested *= (1.0 + bias);
+
+        // Back-off if last set was very hard
+        if ((anchor.Rpe ?? 8.0) >= 9.0)
+            rawSuggested *= (1.0 - FatigueDropPct);
+
+        // Enforce deltas vs the last set today and plate rounding
+        chosenWeight = rawSuggested;
+        if (lastToday != null)
+            chosenWeight = EnforceMinDelta(chosenWeight, lastToday.Weight, MinDeltaKg);
+
+        chosenWeight = RoundToStep(chosenWeight, RoundStepKg);
+
+        // Predict reps at the rounded weight so UI is consistent
+        int predictedReps = PredictRepsAtWeight(anchorE1, chosenWeight, TargetRir);
+        chosenReps = Math.Clamp(predictedReps, TargetRepsLow, TargetRepsHigh);
+
+        // Fill UI
         Reps = chosenReps.ToString();
-        WeightText = chosenWeight.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        WeightText = chosenWeight.ToString("0.##", CultureInfo.InvariantCulture);
         _lastRecommendedReps = chosenReps;
         _lastRecommendedWeight = chosenWeight;
     }
+
+    // Helpers
+    private sealed class Performance
+{
+    public double Weight { get; set; }
+    public int Reps { get; set; }
+    public double? Rpe { get; set; } // null if user didn’t give it
 }
+
+// Estimate e1RM using Epley, with RIR adjustment if RPE is known
+private static double EstimateE1Rm(double weight, int reps, double? rpe)
+    {
+        reps = Math.Max(1, reps);
+        // Base (Epley)
+        double e1 = weight * (1.0 + reps / 30.0);
+
+        if (rpe.HasValue)
+        {
+            var rir = Math.Clamp(10.0 - rpe.Value, 0.0, 5.0);
+            // Convert reps@RIR to estimated %1RM and adjust e1 accordingly
+            var pct = Pct1RmFromRepsAndRir(reps, rir);
+            if (pct > 0.20 && pct < 1.20)
+            {
+                // e1RM ≈ weight / pct
+                e1 = weight / pct;
+            }
+        }
+        return e1;
+    }
+
+    // When RPE not provided, infer roughly from distance to the target reps
+    private static double InferRirFromReps(int achievedReps, int targetReps, double? rpe)
+    {
+        if (rpe.HasValue) return Math.Clamp(10.0 - rpe.Value, 0.0, 5.0);
+        // Very rough: each rep below target = -1 RIR (i.e., it was harder), above target = +1 RIR
+        int diff = targetReps - achievedReps; // positive if we did fewer than target (harder)
+        double inferred = 2.0 + (-diff); // centered near RIR 2
+        return Math.Clamp(inferred, 0.0, 5.0);
+    }
+
+    // Predict weight that should yield `reps` at `rir`, given e1RM
+    private static double WeightForRepsAtRir(double e1rm, int reps, double rir)
+    {
+        double pct = Pct1RmFromRepsAndRir(reps, rir);
+        return Math.Max(0.0, e1rm * pct);
+    }
+
+    // Predict reps achievable at a given weight, targeting a certain RIR, given e1RM
+    private static int PredictRepsAtWeight(double e1rm, double weight, double rir)
+    {
+        // brute force search a small range 3..15 reps and pick closest
+        int bestReps = 8;
+        double bestErr = double.MaxValue;
+        for (int r = 3; r <= 20; r++)
+        {
+            double pct = Pct1RmFromRepsAndRir(r, rir);
+            double predictedW = e1rm * pct;
+            double err = Math.Abs(predictedW - weight);
+            if (err < bestErr) { bestErr = err; bestReps = r; }
+        }
+        return bestReps;
+    }
+
+    // Simple RIR ➜ %1RM model (piecewise linear around common charts)
+    private static double Pct1RmFromRepsAndRir(int reps, double rir)
+    {
+        reps = Math.Clamp(reps, 1, 20);
+        rir = Math.Clamp(rir, 0.0, 5.0);
+
+        // At RIR 0 (RPE 10) common table (approx):
+        // 1:100%, 3:93%, 5:87%, 8:80%, 10:75%, 12:70%, 15:65%, 20:55%
+        double pctAtRir0 = reps switch
+        {
+            <= 1 => 1.00,
+            2 => 0.96,
+            3 => 0.93,
+            4 => 0.90,
+            5 => 0.87,
+            6 => 0.85,
+            7 => 0.82,
+            8 => 0.80,
+            9 => 0.77,
+            10 => 0.75,
+            11 => 0.72,
+            12 => 0.70,
+            13 => 0.68,
+            14 => 0.66,
+            15 => 0.65,
+            <= 17 => 0.60,
+            _ => 0.55
+        };
+
+        // Each +1 RIR ≈ -2.5% intensity (very rough but serviceable)
+        double pct = pctAtRir0 * (1.0 - 0.025 * rir);
+        return Math.Clamp(pct, 0.30, 1.10);
+    }
+}
+
