@@ -40,6 +40,10 @@ public partial class TodayViewModel : ObservableObject
     private const double FatigueDropPct = 0.07;
     private const double RoundStepKg = 2.5;
     private const double MinDeltaKg = 5.0;
+    // Track anchors per exercise for the current session
+    private int? _sessionIdAnchor;
+    private readonly Dictionary<int, Performance> _sessionAnchors = new();
+
 
 
     private static double EnforceMinDelta(double newWeight, double lastWeight, double minDeltaKg)
@@ -146,6 +150,14 @@ public partial class TodayViewModel : ObservableObject
         // 3) Load session + sets (unchanged)
         CurrentSession = await _sessions.GetOpenSessionAsync();
 
+        // If the open session changed since last time, clear anchors
+        var newId = CurrentSession?.Id;
+        if (newId != _sessionIdAnchor)
+        {
+            _sessionIdAnchor = newId;
+            _sessionAnchors.Clear();
+        }
+
         if (CurrentSession != null)
         {
             var nameById = ExerciseOptions.ToDictionary(e => e.Id, e => e.Name);
@@ -248,6 +260,8 @@ public partial class TodayViewModel : ObservableObject
     public async Task StartSession()
     {
         CurrentSession = await _sessions.StartSessionAsync();
+        _sessionIdAnchor = CurrentSession?.Id;
+        _sessionAnchors.Clear();
         TodaysSets.Clear();
         HasActiveSession = true;
     }
@@ -543,7 +557,9 @@ public partial class TodayViewModel : ObservableObject
             .Take(6)
             .ToList();
 
-        // Choose an anchor performance (today if available; else most recent from history)
+        // Choose an anchor performance:
+        // - Within session: if we have already done a set today, anchor = that
+        // - At the start of a session for this exercise: use (or create) a baseline anchor
         Performance anchor;
         if (lastToday != null)
         {
@@ -556,13 +572,24 @@ public partial class TodayViewModel : ObservableObject
         }
         else
         {
-            var h = recent.First(); // safe because we returned earlier when both were empty
-            anchor = new Performance
+            // No sets today for this exercise → session start for this exercise
+            if (!_sessionAnchors.TryGetValue(exercise.Id, out anchor))
             {
-                Weight = h.Weight,
-                Reps = h.Reps,
-                Rpe = h.Rpe
-            };
+                // Build a baseline from recent history
+                var fromHistory = (history ?? Array.Empty<SetEntry>()).ToList();
+                if (fromHistory.Count == 0)
+                {
+                    // No history at all: fall back to a conservative default
+                    // We'll never reach here because of the earlier check
+                    anchor = new Performance { Weight = 20.0, Reps = 8, Rpe = 8.0 };
+                }
+                else
+                {
+                    anchor = PickBaselineFromHistory(fromHistory);
+                }
+                // Cache for this session
+                _sessionAnchors[exercise.Id] = anchor;
+            }
         }
 
         // Estimate current e1RM from anchor
@@ -611,7 +638,7 @@ public partial class TodayViewModel : ObservableObject
 }
 
 // Estimate e1RM using Epley, with RIR adjustment if RPE is known
-private static double EstimateE1Rm(double weight, int reps, double? rpe)
+    private static double EstimateE1Rm(double weight, int reps, double? rpe)
     {
         reps = Math.Max(1, reps);
         // Base (Epley)
@@ -696,6 +723,33 @@ private static double EstimateE1Rm(double weight, int reps, double? rpe)
         // Each +1 RIR ≈ -2.5% intensity (very rough but serviceable)
         double pct = pctAtRir0 * (1.0 - 0.025 * rir);
         return Math.Clamp(pct, 0.30, 1.10);
+    }
+    private static Performance PickBaselineFromHistory(IReadOnlyList<SetEntry> history)
+    {
+        // Prefer "working" sets (RPE 7–9), otherwise fallback to the heaviest recent set
+        var working = history
+            .Where(s => s.Rpe.HasValue && s.Rpe.Value >= 7.0 && s.Rpe.Value <= 9.0)
+            .OrderByDescending(s => s.TimestampUtc)
+            .ToList();
+
+        SetEntry seed;
+        if (working.Count > 0)
+        {
+            // pick the heaviest among working (tie-break by latest)
+            seed = working
+                .OrderByDescending(s => s.Weight)
+                .ThenByDescending(s => s.TimestampUtc)
+                .First();
+        }
+        else
+        {
+            seed = history
+                .OrderByDescending(s => s.Weight)
+                .ThenByDescending(s => s.TimestampUtc)
+                .First();
+        }
+
+        return new Performance { Weight = seed.Weight, Reps = seed.Reps, Rpe = seed.Rpe };
     }
 }
 
