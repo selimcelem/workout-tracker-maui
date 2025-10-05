@@ -28,19 +28,18 @@
                         <!--Right swipe items -->
                         <SwipeView.RightItems>
                             <SwipeItems Mode="Reveal">
-                                <!-- Assign to category swipe item -->
-                                <SwipeItem
-                                    Text="Assign"
-                                    BackgroundColor="DodgerBlue"
-                                    Command="{Binding BindingContext.AssignToCategoryCommand, Source={x:Reference ExercisesPageRoot}}"
-                                    CommandParameter="{Binding}"/>
-
                                 <!-- Delete swipe item -->
                                 <SwipeItem
                                     Text="Delete"
                                     BackgroundColor="IndianRed"
                                     Command="{Binding Source={RelativeSource AncestorType={x:Type vm:ExercisesViewModel}}, Path=DeleteCommand}"
                                     CommandParameter="{Binding Id}"/>
+                                <!-- Assign to category swipe item -->
+                                <SwipeItem
+                                    Text="Assign"
+                                    BackgroundColor="DodgerBlue"
+                                    Command="{Binding BindingContext.AssignToCategoryCommand, Source={x:Reference ExercisesPageRoot}}"
+                                    CommandParameter="{Binding}"/>
                             </SwipeItems>
                         </SwipeView.RightItems>
 
