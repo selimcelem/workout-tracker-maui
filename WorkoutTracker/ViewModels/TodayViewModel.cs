@@ -169,29 +169,68 @@ public partial class TodayViewModel : ObservableObject
             return;
         }
 
-        var name = await Shell.Current.DisplayPromptAsync("New Exercise", $"Add to: {SelectedCategory.Name}", "Add", "Cancel", "Exercise name");
+        // Let user choose: reuse existing or create new
+        var flow = await Shell.Current.DisplayActionSheet(
+            "Add exercise", "Cancel", null, "Pick existing", "Create new");
+        if (string.IsNullOrEmpty(flow) || flow == "Cancel") return;
+
+        if (flow == "Pick existing")
+        {
+            // Prefer uncategorized first
+            var pool = await _exercises.GetUncategorizedAsync();
+
+            // Fallback: allow any exercise not already in this category
+            if (pool.Count == 0)
+            {
+                var all = await _exercises.GetAllAsync();
+                pool = all.Where(e => e.CategoryId != SelectedCategory.Id)
+                          .OrderBy(e => e.Name)
+                          .ToList();
+            }
+
+            if (pool.Count == 0)
+            {
+                await Shell.Current.DisplayAlert("Nothing to add", "No available exercises to pick. Create a new one instead.", "OK");
+                return;
+            }
+
+            var names = pool.Select(e => e.Name).ToArray();
+            var chosenName = await Shell.Current.DisplayActionSheet(
+                $"Add to {SelectedCategory.Name}", "Cancel", null, names);
+            if (string.IsNullOrEmpty(chosenName) || chosenName == "Cancel") return;
+
+            var picked = pool.First(e => e.Name == chosenName);
+
+            // Assign the picked exercise to the selected category
+            await _exercises.ReassignCategoryAsync(picked.Id, SelectedCategory.Id);
+
+            // Refresh + select
+            await FilterExercisesForCategoryAsync(SelectedCategory);
+            SelectedExercise = ExerciseOptions.FirstOrDefault(e => e.Id == picked.Id);
+            return;
+        }
+
+        // flow == "Create new"
+        var name = await Shell.Current.DisplayPromptAsync(
+            "New Exercise", $"Add to: {SelectedCategory.Name}", "Add", "Cancel", "Exercise name");
         if (string.IsNullOrWhiteSpace(name)) return;
 
-        var trimmed = name.Trim();
-
-        // 1) Reuse if it already exists (case-insensitive)
-        var existing = await _exercises.GetByNameAsync(trimmed);
-        Exercise target;
-
+        // If a same-named exercise already exists, reuse it instead of crashing on UNIQUE(Name)
+        var existing = await _exercises.GetByNameAsync(name);
         if (existing != null)
         {
             await _exercises.ReassignCategoryAsync(existing.Id, SelectedCategory.Id);
-            target = existing;
+            await FilterExercisesForCategoryAsync(SelectedCategory);
+            SelectedExercise = ExerciseOptions.FirstOrDefault(e => e.Id == existing.Id);
+            return;
         }
-        else
-        {
-            target = await _exercises.AddAsync(trimmed, SelectedCategory.Id);
-        }
-       
-        // Reload list and select the newly added exercise
+
+        // Otherwise create it directly under this category
+        var added = await _exercises.AddAsync(name.Trim(), SelectedCategory.Id);
         await FilterExercisesForCategoryAsync(SelectedCategory);
-        SelectedExercise = ExerciseOptions.FirstOrDefault(e => e.Id == target.Id);
+        SelectedExercise = ExerciseOptions.FirstOrDefault(e => e.Id == added.Id);
     }
+
 
     [RelayCommand]
     public async Task StartSession()

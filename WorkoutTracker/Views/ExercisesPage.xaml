@@ -3,24 +3,53 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:WorkoutTracker.ViewModels"
              x:Class="WorkoutTracker.Views.ExercisesPage"
+             x:Name="ExercisesPageRoot"
              Title="Exercises">
 
     <VerticalStackLayout Padding="16" Spacing="12">
+        <!-- New exercise input and button -->
         <Grid ColumnDefinitions="*,Auto">
             <Entry Placeholder="New exercise name" Text="{Binding NewExerciseName}" />
             <Button Grid.Column="1" Text="Add" Command="{Binding AddCommand}" />
         </Grid>
-
-        <CollectionView ItemsSource="{Binding Items}">
+        <!-- Exercise list -->
+        <CollectionView ItemsSource="{Binding Items}"
+                        SelectionMode="None">
+            <CollectionView.EmptyView>
+                <Label Text="No exercises added yet."
+                       Opacity="0.6"
+                       HorizontalOptions="Center"
+                       Margin="0,24,0,0"/>
+            </CollectionView.EmptyView>
+            
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Grid ColumnDefinitions="*,Auto" Padding="8">
-                        <Label Text="{Binding Name}" VerticalOptions="Center" />
-                        <Button Grid.Column="1"
-                    Text="Delete"
-                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:ExercisesViewModel}}, Path=DeleteCommand}"
-                    CommandParameter="{Binding Id}" />
-                    </Grid>
+                    <SwipeView>
+                        <!--Right swipe items -->
+                        <SwipeView.RightItems>
+                            <SwipeItems Mode="Reveal">
+                                <!-- Assign to category swipe item -->
+                                <SwipeItem
+                                    Text="Assign"
+                                    BackgroundColor="DodgerBlue"
+                                    Command="{Binding BindingContext.AssignToCategoryCommand, Source={x:Reference ExercisesPageRoot}}"
+                                    CommandParameter="{Binding}"/>
+
+                                <!-- Delete swipe item -->
+                                <SwipeItem
+                                    Text="Delete"
+                                    BackgroundColor="IndianRed"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:ExercisesViewModel}}, Path=DeleteCommand}"
+                                    CommandParameter="{Binding Id}"/>
+                            </SwipeItems>
+                        </SwipeView.RightItems>
+
+                        <!-- Exercise item layout -->
+                        <Grid ColumnDefinitions="*,Auto" Padding="8">
+                            <Label Text="{Binding Name}" VerticalOptions="Center" />
+
+                        </Grid>
+                    </SwipeView>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>

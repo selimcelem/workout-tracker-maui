@@ -9,7 +9,7 @@ namespace WorkoutTracker.Services
     public interface IExerciseService
     {
         Task<List<Exercise>> GetAllAsync();
-
+        Task<List<Exercise>> GetUncategorizedAsync();
         // Keep original signature but return the created Exercise
         Task<Exercise> AddAsync(string name, string? bodyPart = null, string? notes = null);
 
@@ -82,5 +82,13 @@ namespace WorkoutTracker.Services
 
         public Task UnassignAllInCategoryAsync(int categoryId)
             => _conn.ExecuteAsync("UPDATE Exercise SET CategoryId = NULL WHERE CategoryId = ?", categoryId);
+                
+        public Task<List<Exercise>> GetUncategorizedAsync() =>
+                _conn.Table<Exercise>()
+                     .Where(e => e.CategoryId == null)
+                     .OrderBy(e => e.Name)
+                     .ToListAsync();
+        
+
     }
 }
