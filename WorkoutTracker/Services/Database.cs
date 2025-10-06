@@ -13,6 +13,7 @@ public class Database
         await _conn.CreateTableAsync<Exercise>();
         await _conn.CreateTableAsync<WorkoutSession>();
         await _conn.CreateTableAsync<SetEntry>();
+        await _conn.CreateTableAsync<ExerciseCatalogEntry>();
 
         // Seed example exercises on first run
         if (await _conn.Table<Exercise>().CountAsync() == 0)

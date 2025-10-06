@@ -66,7 +66,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<ISessionService, SessionService>();
         builder.Services.AddSingleton<ISetService, SetService>();
         builder.Services.AddSingleton<ICategoryService, CategoryService>();
-        
+        builder.Services.AddSingleton<IExerciseCatalogService, ExerciseCatalogService>();
+
         // ViewModels
         builder.Services.AddTransient<ExercisesViewModel>();
         builder.Services.AddTransient<TodayViewModel>();

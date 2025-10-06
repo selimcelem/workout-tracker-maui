@@ -215,6 +215,22 @@ public partial class TodayViewModel : ObservableObject
         var name = await Shell.Current.DisplayPromptAsync("New Exercise", $"Add to: {SelectedCategory.Name}", "Add", "Cancel", "Exercise name");
         if (string.IsNullOrWhiteSpace(name)) return;
 
+        // Suggest from catalog
+        var frag = name.Trim();
+        if (frag.Length >= 1 && frag.Length <= 3)
+        {
+            var suggestions = await _catalog.SearchAsync(frag, 15);
+            if (suggestions.Count > 0)
+            {
+                var picked = await Shell.Current.DisplayActionSheet("Suggestions", "Cancel", null, suggestions.Select(s => s.Name).ToArray());
+                if (!string.IsNullOrEmpty(picked) && picked != "Cancel")
+                {
+                    name = picked;
+                }
+            }
+        }
+
+        // Check if already exists
         var existing = await _exercises.GetByNameAsync(name);
         if (existing != null)
         {
@@ -625,4 +641,12 @@ public partial class TodayViewModel : ObservableObject
         double pct = pctAtRir0 * (1.0 - 0.025 * rir); // ~2.5% per RIR
         return Math.Clamp(pct, 0.30, 1.10);
     }
+
+    private readonly IExerciseCatalogService _catalog;
+    public TodayViewModel(ISessionService sessions, ISetService sets, IExerciseService exercises,
+                          ICategoryService categories, IExerciseCatalogService catalog)
+    {
+        _sessions = sessions; _sets = sets; _exercises = exercises; _categories = categories; _catalog = catalog;
+    }
+
 }

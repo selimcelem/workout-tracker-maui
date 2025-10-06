@@ -18,6 +18,20 @@ public partial class App : Application
         // Desktop: block so first pages have guaranteed tables
         db.InitAsync().ConfigureAwait(false).GetAwaiter().GetResult();
 #endif
+        try
+        {
+            var catalog = services.GetRequiredService<IExerciseCatalogService>();
+
+#if ANDROID
+            _ = catalog.SeedDefaultsAsync(); // non-blocking for Android
+#else
+            catalog.SeedDefaultsAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+#endif
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("Catalog seed failed: " + ex);
+        }
 
         MainPage = new AppShell();
     }
