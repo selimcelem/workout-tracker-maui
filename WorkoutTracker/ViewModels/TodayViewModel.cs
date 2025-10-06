@@ -16,16 +16,19 @@ public partial class TodayViewModel : ObservableObject
     private readonly ISetService _sets;
     private readonly IExerciseService _exercises;
     private readonly ICategoryService _categories;
+    private readonly IExerciseCatalogService _catalog;
 
     public TodayViewModel(ISessionService sessions,
         ISetService sets,
         IExerciseService exercises,
-        ICategoryService categories)
+        ICategoryService categories,
+        IExerciseCatalogService catalog)
     {
         _sessions = sessions;
         _sets = sets;
         _exercises = exercises;
         _categories = categories;
+        _catalog = catalog;
     }
 
     // --- Recommendation helpers/config ---
@@ -212,26 +215,33 @@ public partial class TodayViewModel : ObservableObject
         }
 
         // Create new
-        var name = await Shell.Current.DisplayPromptAsync("New Exercise", $"Add to: {SelectedCategory.Name}", "Add", "Cancel", "Exercise name");
-        if (string.IsNullOrWhiteSpace(name)) return;
+        var typed = (await Shell.Current.DisplayPromptAsync(
+            "New Exercise", $"Add to: {SelectedCategory.Name}", "Add", "Cancel", "Exercise name"))?
+            .Trim();
 
-        // Suggest from catalog
-        var frag = name.Trim();
-        if (frag.Length >= 1 && frag.Length <= 3)
+        if (string.IsNullOrWhiteSpace(typed)) return;
+
+        // Suggest from catalog for very short fragments
+        var nameToUse = typed;
+        if (typed.Length is >= 1 and <= 3)
         {
-            var suggestions = await _catalog.SearchAsync(frag, 15);
+            var suggestions = await _catalog.SearchAsync(typed, 15);
             if (suggestions.Count > 0)
             {
-                var picked = await Shell.Current.DisplayActionSheet("Suggestions", "Cancel", null, suggestions.Select(s => s.Name).ToArray());
+                var options = suggestions.Select(s => s.Name).ToList();
+                options.Insert(0, $"Use \"{typed}\"");
+                var picked = await Shell.Current.DisplayActionSheet("Suggestions", "Cancel", null, options.ToArray());
                 if (!string.IsNullOrEmpty(picked) && picked != "Cancel")
                 {
-                    name = picked;
+                    nameToUse = picked.StartsWith("Use \"", StringComparison.Ordinal)
+                        ? typed
+                        : picked;
                 }
             }
         }
 
-        // Check if already exists
-        var existing = await _exercises.GetByNameAsync(name);
+        // Check if already exists (case-insensitive)
+        var existing = await _exercises.GetByNameAsync(nameToUse);
         if (existing != null)
         {
             await _exercises.ReassignCategoryAsync(existing.Id, SelectedCategory.Id);
@@ -240,7 +250,7 @@ public partial class TodayViewModel : ObservableObject
             return;
         }
 
-        var added = await _exercises.AddAsync(name.Trim(), SelectedCategory.Id);
+        var added = await _exercises.AddAsync(nameToUse, SelectedCategory.Id);
         await FilterExercisesForCategoryAsync(SelectedCategory);
         SelectedExercise = ExerciseOptions.FirstOrDefault(e => e.Id == added.Id);
     }
@@ -641,12 +651,4 @@ public partial class TodayViewModel : ObservableObject
         double pct = pctAtRir0 * (1.0 - 0.025 * rir); // ~2.5% per RIR
         return Math.Clamp(pct, 0.30, 1.10);
     }
-
-    private readonly IExerciseCatalogService _catalog;
-    public TodayViewModel(ISessionService sessions, ISetService sets, IExerciseService exercises,
-                          ICategoryService categories, IExerciseCatalogService catalog)
-    {
-        _sessions = sessions; _sets = sets; _exercises = exercises; _categories = categories; _catalog = catalog;
-    }
-
 }
