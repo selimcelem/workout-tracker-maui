@@ -4,6 +4,7 @@ namespace WorkoutTracker.Services;
 
 public interface IExerciseCatalogService
 {
-    Task<List<ExerciseCatalogEntry>> SearchAsync(string fragment, int limit = 20);
+    Task EnsureCreatedAsync();
     Task SeedDefaultsAsync();
+    Task<IReadOnlyList<ExerciseCatalogItem>> SearchAsync(string fragment, int limit = 15);
 }

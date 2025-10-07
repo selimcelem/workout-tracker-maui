@@ -6,17 +6,19 @@ public partial class App : Application
 {
     public IServiceProvider Services { get; }
 
-    public App(IServiceProvider services, Database db)
+    public App(IServiceProvider services, Database db, IExerciseCatalogService exerciseCatalog)
     {
         InitializeComponent();
         Services = services;
 
 #if ANDROID
         // Avoid deadlocks at startup on Android
-        _ = InitializeDbAsync(db);
+        _ = InitializeDbAsync(db, exerciseCatalog);
 #else
         // Desktop: block so first pages have guaranteed tables
         db.InitAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        exerciseCatalog.EnsureCreatedAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        exerciseCatalog.SeedDefaultsAsync().ConfigureAwait(false).GetAwaiter().GetResult();
 #endif
         try
         {
@@ -36,12 +38,17 @@ public partial class App : Application
         MainPage = new AppShell();
     }
 
-    private static async Task InitializeDbAsync(Database db)
+    private static async Task InitializeDbAsync(Database db, IExerciseCatalogService exerciseCatalog)
     {
-        try { await db.InitAsync().ConfigureAwait(false); }
+        try
+        {
+            await db.InitAsync().ConfigureAwait(false);
+            await exerciseCatalog.EnsureCreatedAsync().ConfigureAwait(false);
+            await exerciseCatalog.SeedDefaultsAsync().ConfigureAwait(false);
+        }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine("DB init failed: " + ex);
+            System.Diagnostics.Debug.WriteLine("Startup init failed: " + ex);
         }
     }
 

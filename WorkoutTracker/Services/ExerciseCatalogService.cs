@@ -3,40 +3,50 @@ using WorkoutTracker.Models;
 
 namespace WorkoutTracker.Services;
 
-public class ExerciseCatalogService : IExerciseCatalogService
+public sealed class ExerciseCatalogService : IExerciseCatalogService
 {
     private readonly SQLiteAsyncConnection _conn;
     public ExerciseCatalogService(SQLiteAsyncConnection conn) => _conn = conn;
 
-    public async Task<List<ExerciseCatalogEntry>> SearchAsync(string fragment, int limit = 20)
+    public async Task EnsureCreatedAsync()
     {
-        var q = (fragment ?? "").Trim();
-        if (q.Length == 0) return new();
-        // starts-with first, case-insensitive
-        return await _conn.QueryAsync<ExerciseCatalogEntry>(
-            @"SELECT * FROM ExerciseCatalogEntry
-              WHERE Name LIKE ? COLLATE NOCASE
-              ORDER BY Name
-              LIMIT ?", q + "%", limit);
+        await _conn.CreateTableAsync<ExerciseCatalogItem>();
     }
 
     public async Task SeedDefaultsAsync()
     {
-        await _conn.CreateTableAsync<ExerciseCatalogEntry>();
-        var count = await _conn.Table<ExerciseCatalogEntry>().CountAsync();
+        var count = await _conn.Table<ExerciseCatalogItem>().CountAsync();
         if (count > 0) return;
 
-        var defaults = new[]
+        var items = new[]
         {
-            "Back Extension","Barbell Back Squat","Barbell Bench Press","Barbell Curl",
-            "Bent-Over Row","Bicep Curl","Bulgarian Split Squat","Calf Raise","Deadlift",
-            "Dumbbell Bench Press","Dumbbell Curl","Face Pull","Hip Thrust","Incline Bench Press",
-            "Lat Pulldown","Leg Curl","Leg Extension","Overhead Press","Pull-Up","Romanian Deadlift",
-            "Seated Row","Shoulder Press","Tricep Pushdown","Tricep Extension"
-        }.Distinct(StringComparer.OrdinalIgnoreCase)
-         .Select(n => new ExerciseCatalogEntry { Name = n })
-         .ToList();
+            new ExerciseCatalogItem { Name = "Back Squat", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
+            new ExerciseCatalogItem { Name = "Front Squat", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
+            new ExerciseCatalogItem { Name = "Bench Press", BodyPart = "Chest", IsCompound = true, DefaultIncrementKg = 2.5 },
+            new ExerciseCatalogItem { Name = "Incline Bench Press", BodyPart = "Chest", IsCompound = true, DefaultIncrementKg = 2.5 },
+            new ExerciseCatalogItem { Name = "Deadlift", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
+            new ExerciseCatalogItem { Name = "Overhead Press", BodyPart = "Shoulders", IsCompound = true, DefaultIncrementKg = 2.5 },
+            new ExerciseCatalogItem { Name = "Pull-Up", BodyPart = "Back", IsCompound = true },
+            new ExerciseCatalogItem { Name = "Bent-Over Row", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
+            // Isolation examples with smaller jumps
+            new ExerciseCatalogItem { Name = "Biceps Curl", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.25 },
+            new ExerciseCatalogItem { Name = "Hammer Curl", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.25 },
+            new ExerciseCatalogItem { Name = "Lateral Raise", BodyPart = "Shoulders", IsCompound = false, DefaultIncrementKg = 1.0 },
+            new ExerciseCatalogItem { Name = "Leg Extension", BodyPart = "Quads", IsCompound = false, DefaultIncrementKg = 1.25 },
+            new ExerciseCatalogItem { Name = "Leg Curl", BodyPart = "Hamstrings", IsCompound = false, DefaultIncrementKg = 1.25 },
+            new ExerciseCatalogItem { Name = "Calf Raise", BodyPart = "Calves", IsCompound = false, DefaultIncrementKg = 1.25 },
+            new ExerciseCatalogItem { Name = "Chest Fly", BodyPart = "Chest", IsCompound = false, DefaultIncrementKg = 1.25 },
+        };
 
-        await _conn.InsertAllAsync(defaults);
+        await _conn.InsertAllAsync(items);
+    }
+
+    public async Task<IReadOnlyList<ExerciseCatalogItem>> SearchAsync(string fragment, int limit = 15)
+    {
+        if (string.IsNullOrWhiteSpace(fragment)) return Array.Empty<ExerciseCatalogItem>();
+        fragment = fragment.Trim();
+
+        var sql = $"SELECT * FROM ExerciseCatalogItem WHERE Name LIKE ? ORDER BY Name LIMIT {limit}";
+        return await _conn.QueryAsync<ExerciseCatalogItem>(sql, $"{fragment}%");
     }
 }
