@@ -34,20 +34,26 @@ public partial class ExercisesViewModel : ObservableObject
     [RelayCommand]
     public async Task Add()
     {
-        var name = await PromptExerciseNameWithSuggestionsAsync();
-        if (name is null) return;
+        var typed = (NewExerciseName ?? "").Trim();
 
-        // Check if exercise already exists
-        var existing = await _exercises.GetByNameAsync(name);
-        if (existing != null)
+        // If nothing typed, fall back to the old prompt flow
+        if (string.IsNullOrWhiteSpace(typed))
         {
-            await Shell.Current.DisplayAlert("Already exists",
-                $"{name} is already in your list.", "OK");
+            var prompted = await PromptExerciseNameWithSuggestionsAsync();
+            if (string.IsNullOrWhiteSpace(prompted)) return;
+
+            await _exercises.AddAsync(prompted);
+            NewExerciseName = "";
+            await Load();
             return;
         }
 
-        // Otherwise add it normally
-        await _exercises.AddAsync(name);
+        // User already typed something → resolve with suggestions (no extra prompt)
+        var resolved = await ResolveNameWithSuggestionsAsync(typed);
+        if (string.IsNullOrWhiteSpace(resolved)) return;
+
+        await _exercises.AddAsync(resolved);
+        NewExerciseName = "";
         await Load();
     }
 
@@ -114,4 +120,29 @@ public partial class ExercisesViewModel : ObservableObject
         return nameToUse;
     }
 
+    private async Task<string?> ResolveNameWithSuggestionsAsync(string typed)
+    {
+        var nameToUse = typed;
+
+        // Show suggestions for any input ≥ 1 character (no prompt)
+        if (typed.Length >= 1)
+        {
+            var suggestions = await _catalog.SearchAsync(typed, 20);
+            if (suggestions.Count > 0)
+            {
+                var options = suggestions.Select(s => s.Name)
+                                         .Distinct(StringComparer.OrdinalIgnoreCase)
+                                         .ToList();
+                options.Insert(0, $"Use \"{typed}\"");
+
+                var picked = await Shell.Current.DisplayActionSheet("Suggestions", "Cancel", null, options.ToArray());
+                if (string.IsNullOrEmpty(picked) || picked == "Cancel")
+                    return null;
+
+                nameToUse = picked.StartsWith("Use \"", StringComparison.Ordinal) ? typed : picked;
+            }
+        }
+
+        return nameToUse;
+    }
 }
