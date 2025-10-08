@@ -223,7 +223,7 @@ public partial class TodayViewModel : ObservableObject
 
         // Suggest from catalog for very short fragments
         var nameToUse = typed;
-        if (typed.Length is >= 1 and <= 3)
+        if (typed.Length is >= 1)
         {
             var suggestions = await _catalog.SearchAsync(typed, 15);
             if (suggestions.Count > 0)

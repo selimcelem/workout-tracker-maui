@@ -11,6 +11,7 @@ public sealed class ExerciseCatalogService : IExerciseCatalogService
     public async Task EnsureCreatedAsync()
     {
         await _conn.CreateTableAsync<ExerciseCatalogItem>();
+        await _conn.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_ExerciseCatalogItem_Name ON ExerciseCatalogItem(Name)");
     }
 
     public async Task SeedDefaultsAsync()
@@ -46,7 +47,7 @@ public sealed class ExerciseCatalogService : IExerciseCatalogService
         if (string.IsNullOrWhiteSpace(fragment)) return Array.Empty<ExerciseCatalogItem>();
         fragment = fragment.Trim();
 
-        var sql = $"SELECT * FROM ExerciseCatalogItem WHERE Name LIKE ? ORDER BY Name LIMIT {limit}";
+        var sql = $"SELECT * FROM ExerciseCatalogItem WHERE Name LIKE ? COLLATE NOCASE ORDER BY Name LIMIT {limit}";
         return await _conn.QueryAsync<ExerciseCatalogItem>(sql, $"{fragment}%");
     }
 }
