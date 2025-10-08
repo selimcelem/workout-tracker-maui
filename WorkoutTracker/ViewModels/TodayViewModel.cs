@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WorkoutTracker.Models;
@@ -17,21 +18,27 @@ public partial class TodayViewModel : ObservableObject
     private readonly IExerciseService _exercises;
     private readonly ICategoryService _categories;
     private readonly IExerciseCatalogService _catalog;
+    private readonly ISettingsService _settings;
 
-    public TodayViewModel(ISessionService sessions,
+    public TodayViewModel(
+        ISessionService sessions,
         ISetService sets,
         IExerciseService exercises,
         ICategoryService categories,
-        IExerciseCatalogService catalog)
+        IExerciseCatalogService catalog,
+        ISettingsService settings)
     {
         _sessions = sessions;
         _sets = sets;
         _exercises = exercises;
         _categories = categories;
         _catalog = catalog;
+        _settings = settings;
+
+        SelectedGoal = _settings.Goal; // load persisted goal
     }
 
-    // --- Recommendation helpers/config ---
+    // --- Recommendation state/helpers ---
     private int? _lastRecommendedReps;
     private double? _lastRecommendedWeight;
 
@@ -41,14 +48,7 @@ public partial class TodayViewModel : ObservableObject
     private static double RoundToStep(double value, double stepKg)
         => Math.Round(value / stepKg, MidpointRounding.AwayFromZero) * stepKg;
 
-    private const int TargetRepsLow = 8;
-    private const int TargetRepsHigh = 12;
-    private const double TargetRir = 2.0;     // ≈ RPE 8
-    private const double MaxStepUpPct = 0.06; // +6% cap
-    private const double MaxStepDnPct = 0.08; // -8% cap
-    private const double FatigueDropPct = 0.07;
-    private const double RoundStepKg = 2.5;
-    private const double MinDeltaKg = 5.0;
+    private const double RoundStepKg = 2.5; // global plate rounding
 
     private static double EnforceMinDelta(double newWeight, double lastWeight, double minDeltaKg)
     {
@@ -58,23 +58,23 @@ public partial class TodayViewModel : ObservableObject
         return newWeight;
     }
 
-    private static (double weight, int reps) FirstSetProgression(Performance lastWorkingLike)
+    private static (double weight, int reps) FirstSetProgression(Performance lastWorkingLike, GoalConfig cfg)
     {
-        // If last time was a decent working set (8–12 reps, RPE ≤ 8.5), nudge up a bit.
+        // If last time was a decent working set (within goal rep range, RPE <= 8.5), nudge up a bit.
         bool wasWorking =
-            lastWorkingLike.Reps >= TargetRepsLow &&
-            lastWorkingLike.Reps <= TargetRepsHigh &&
+            lastWorkingLike.Reps >= cfg.RepsLow &&
+            lastWorkingLike.Reps <= cfg.RepsHigh &&
             (!lastWorkingLike.Rpe.HasValue || lastWorkingLike.Rpe.Value <= 8.5);
 
         if (wasWorking)
         {
             // +2.5 kg minimum OR about +2.5% (whichever is larger), then target mid-range reps
             var bumped = Math.Max(lastWorkingLike.Weight * 1.025, lastWorkingLike.Weight + 2.5);
-            return (bumped, (TargetRepsLow + TargetRepsHigh) / 2);
+            return (bumped, (cfg.RepsLow + cfg.RepsHigh) / 2);
         }
 
         // If last was too hard, keep weight and aim mid-range
-        return (lastWorkingLike.Weight, (TargetRepsLow + TargetRepsHigh) / 2);
+        return (lastWorkingLike.Weight, (cfg.RepsLow + cfg.RepsHigh) / 2);
     }
 
     // --- UI state ---
@@ -86,8 +86,20 @@ public partial class TodayViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<Exercise> exerciseOptions = new();
     [ObservableProperty] private Exercise? selectedExercise;
 
+    [ObservableProperty] private TrainingGoal selectedGoal = TrainingGoal.Hypertrophy; // default
+
     partial void OnSelectedCategoryChanged(WorkoutCategory? value) => _ = FilterExercisesForCategoryAsync(value);
+
     partial void OnSelectedExerciseChanged(Exercise? value) => _ = RecommendFromLastSessionAsync(value);
+
+    partial void OnSelectedGoalChanged(TrainingGoal value)
+    {
+        // persist whenever user switches goal
+        _settings.Goal = value;
+        // Recompute suggestion for current exercise (if any)
+        if (SelectedExercise != null)
+            _ = RecommendFromLastSessionAsync(SelectedExercise);
+    }
 
     [ObservableProperty] private bool hasActiveSession;
 
@@ -214,29 +226,23 @@ public partial class TodayViewModel : ObservableObject
             return;
         }
 
-        // Create new
+        // Create new (with suggestions)
         var typed = (await Shell.Current.DisplayPromptAsync(
             "New Exercise", $"Add to: {SelectedCategory.Name}", "Add", "Cancel", "Exercise name"))?
             .Trim();
 
         if (string.IsNullOrWhiteSpace(typed)) return;
 
-        // Suggest from catalog for very short fragments
         var nameToUse = typed;
-        if (typed.Length is >= 1)
+        var suggestions = await _catalog.SearchAsync(typed, 15);
+        if (suggestions.Count > 0)
         {
-            var suggestions = await _catalog.SearchAsync(typed, 15);
-            if (suggestions.Count > 0)
+            var options = suggestions.Select(s => s.Name).ToList();
+            options.Insert(0, $"Use \"{typed}\"");
+            var picked = await Shell.Current.DisplayActionSheet("Suggestions", "Cancel", null, options.ToArray());
+            if (!string.IsNullOrEmpty(picked) && picked != "Cancel")
             {
-                var options = suggestions.Select(s => s.Name).ToList();
-                options.Insert(0, $"Use \"{typed}\"");
-                var picked = await Shell.Current.DisplayActionSheet("Suggestions", "Cancel", null, options.ToArray());
-                if (!string.IsNullOrEmpty(picked) && picked != "Cancel")
-                {
-                    nameToUse = picked.StartsWith("Use \"", StringComparison.Ordinal)
-                        ? typed
-                        : picked;
-                }
+                nameToUse = picked.StartsWith("Use \"", StringComparison.Ordinal) ? typed : picked;
             }
         }
 
@@ -464,10 +470,52 @@ public partial class TodayViewModel : ObservableObject
         public double? Rpe { get; set; }
     }
 
+    // ---------- Goal Configuration ----------
+    private static GoalConfig GetConfig(TrainingGoal goal) => goal switch
+    {
+        TrainingGoal.Strength => new GoalConfig
+        {
+            RepsLow = 3,
+            RepsHigh = 6,
+            TargetRir = 3.0,
+            MaxStepUpPct = 0.03,
+            MaxStepDnPct = 0.04,
+            FatigueDropPct = 0.05,
+            MinDeltaKgCompound = 2.5,
+            MinDeltaKgIsolation = 1.25
+        },
+        TrainingGoal.Hypertrophy => new GoalConfig
+        {
+            RepsLow = 6,
+            RepsHigh = 12,
+            TargetRir = 2.0,
+            MaxStepUpPct = 0.04,
+            MaxStepDnPct = 0.06,
+            FatigueDropPct = 0.07,
+            MinDeltaKgCompound = 2.5,
+            MinDeltaKgIsolation = 1.25
+        },
+        TrainingGoal.Endurance => new GoalConfig
+        {
+            RepsLow = 12,
+            RepsHigh = 20,
+            TargetRir = 3.0,
+            MaxStepUpPct = 0.05,
+            MaxStepDnPct = 0.08,
+            FatigueDropPct = 0.08,
+            MinDeltaKgCompound = 2.5,
+            MinDeltaKgIsolation = 1.0
+        },
+        _ => throw new ArgumentOutOfRangeException()
+    };
+
     // ---------- Recommendation logic ----------
     private async Task RecommendFromLastSessionAsync(Exercise? exercise)
     {
         if (exercise == null) return;
+
+        // Resolve goal config
+        var cfg = GetConfig(SelectedGoal);
 
         IReadOnlyList<SetEntry> history;
         try { history = await _sets.GetLastSessionSetsForExerciseAsync(exercise.Id); }
@@ -486,9 +534,9 @@ public partial class TodayViewModel : ObservableObject
         {
             var baseline = PickBaselineFromHistory(history);
 
-            var (w, r) = FirstSetProgression(baseline);
+            var (w, r) = FirstSetProgression(baseline, cfg);
             w = RoundToStep(w, RoundStepKg);
-            r = Math.Clamp(r, TargetRepsLow, TargetRepsHigh);
+            r = Math.Clamp(r, cfg.RepsLow, cfg.RepsHigh);
 
             Reps = r.ToString();
             WeightText = w.ToString("0.##", CultureInfo.InvariantCulture);
@@ -517,8 +565,9 @@ public partial class TodayViewModel : ObservableObject
         }
         else
         {
+            // No info: use typed weight or a conservative default
             double cw = (double.TryParse(WeightText, NumberStyles.Float, CultureInfo.InvariantCulture, out var w) && w > 0) ? w : 20.0;
-            int cr = Math.Max(TargetRepsLow, 8);
+            int cr = Math.Max(cfg.RepsLow, 8);
             cw = RoundToStep(cw, RoundStepKg);
             Reps = cr.ToString();
             WeightText = cw.ToString("0.##", CultureInfo.InvariantCulture);
@@ -531,26 +580,35 @@ public partial class TodayViewModel : ObservableObject
         var anchorE1 = EstimateE1Rm(anchor.Weight, anchor.Reps, anchor.Rpe);
 
         // Aim mid-range at target RIR
-        int targetReps = (TargetRepsLow + TargetRepsHigh) / 2;
+        int targetReps = (cfg.RepsLow + cfg.RepsHigh) / 2;
         double inferredRir = InferRirFromReps(anchor.Reps, targetReps, anchor.Rpe);
 
-        double rawSuggested = WeightForRepsAtRir(anchorE1, targetReps, TargetRir);
+        double rawSuggested = WeightForRepsAtRir(anchorE1, targetReps, cfg.TargetRir);
 
         // If last was easier than desired (inferredRir > target) → increase; harder → decrease
-        var bias = Math.Clamp((inferredRir - TargetRir) * 0.02, -MaxStepDnPct, MaxStepUpPct);
+        var bias = Math.Clamp((inferredRir - cfg.TargetRir) * 0.02, -cfg.MaxStepDnPct, cfg.MaxStepUpPct);
         rawSuggested *= (1.0 + bias);
 
         if ((anchor.Rpe ?? 8.0) >= 9.0)
-            rawSuggested *= (1.0 - FatigueDropPct);
+            rawSuggested *= (1.0 - cfg.FatigueDropPct);
 
         double chosenWeight = rawSuggested;
+
         if (lastToday != null)
-            chosenWeight = EnforceMinDelta(chosenWeight, lastToday.Weight, MinDeltaKg);
+        {
+            // Decide min jump by compound vs isolation from catalog (best-effort)
+            bool isCompound =
+                (await _catalog.SearchAsync(exercise.Name, 1)).FirstOrDefault()?.IsCompound ?? true;
+
+            double minDelta = isCompound ? cfg.MinDeltaKgCompound : cfg.MinDeltaKgIsolation;
+
+            chosenWeight = EnforceMinDelta(chosenWeight, lastToday.Weight, minDelta);
+        }
 
         chosenWeight = RoundToStep(chosenWeight, RoundStepKg);
 
-        int predictedReps = PredictRepsAtWeight(anchorE1, chosenWeight, TargetRir);
-        int chosenReps = Math.Clamp(predictedReps, TargetRepsLow, TargetRepsHigh);
+        int predictedReps = PredictRepsAtWeight(anchorE1, chosenWeight, cfg.TargetRir);
+        int chosenReps = Math.Clamp(predictedReps, cfg.RepsLow, cfg.RepsHigh);
 
         Reps = chosenReps.ToString();
         WeightText = chosenWeight.ToString("0.##", CultureInfo.InvariantCulture);
@@ -579,6 +637,7 @@ public partial class TodayViewModel : ObservableObject
         return new Performance { Weight = seed.Weight, Reps = seed.Reps, Rpe = seed.Rpe };
     }
 
+    // --- e1RM helpers ---
     private static double EstimateE1Rm(double weight, int reps, double? rpe)
     {
         reps = Math.Max(1, reps);
@@ -627,6 +686,7 @@ public partial class TodayViewModel : ObservableObject
         reps = Math.Clamp(reps, 1, 20);
         rir = Math.Clamp(rir, 0.0, 5.0);
 
+        // Approximate %1RM at RIR 0
         double pctAtRir0 = reps switch
         {
             <= 1 => 1.00,
@@ -650,5 +710,18 @@ public partial class TodayViewModel : ObservableObject
 
         double pct = pctAtRir0 * (1.0 - 0.025 * rir); // ~2.5% per RIR
         return Math.Clamp(pct, 0.30, 1.10);
+    }
+
+    // Local config container
+    private sealed class GoalConfig
+    {
+        public int RepsLow { get; init; }
+        public int RepsHigh { get; init; }
+        public double TargetRir { get; init; }
+        public double MaxStepUpPct { get; init; }
+        public double MaxStepDnPct { get; init; }
+        public double FatigueDropPct { get; init; }
+        public double MinDeltaKgCompound { get; init; }
+        public double MinDeltaKgIsolation { get; init; }
     }
 }

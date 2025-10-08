@@ -57,6 +57,22 @@
                     ItemDisplayBinding="{Binding Name}"
                     SelectedItem="{Binding SelectedExercise}" />
                 </Grid>
+            
+            <!-- Goal -->
+                <Label Text="Goal:" 
+                   FontAttributes="Bold" 
+                   Margin="0,8,0,0" />
+
+                <Picker x:Name="GoalPicker"
+                    Title="Select goal"
+                    SelectedIndexChanged="OnGoalChanged">
+                <Picker.Items>
+                    <x:String>Strength</x:String>
+                    <x:String>Hypertrophy</x:String>
+                    <x:String>Endurance</x:String>
+                </Picker.Items>
+                </Picker>
+
 
             <!-- If no exercises in this category, show a prompt -->
                 <HorizontalStackLayout Spacing="8"
