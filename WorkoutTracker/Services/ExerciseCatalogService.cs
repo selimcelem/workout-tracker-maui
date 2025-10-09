@@ -1,5 +1,7 @@
-﻿using SQLite;
+﻿using System.Linq;
+using SQLite;
 using WorkoutTracker.Models;
+
 
 namespace WorkoutTracker.Services;
 
@@ -11,17 +13,14 @@ public sealed class ExerciseCatalogService : IExerciseCatalogService
     public async Task EnsureCreatedAsync()
     {
         await _conn.CreateTableAsync<ExerciseCatalogItem>();
-        await _conn.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_ExerciseCatalogItem_Name ON ExerciseCatalogItem(Name)");
+        await _conn.ExecuteAsync("CREATE UNIQUE INDEX IF NOT EXISTS ux_ExerciseCatalogItem_Name ON ExerciseCatalogItem(Name COLLATE NOCASE)");
     }
 
     // Broader, consolidated seed list
     public async Task SeedDefaultsAsync()
     {
-        // Seed only if empty
-        var count = await _conn.Table<ExerciseCatalogItem>().CountAsync();
-        if (count > 0) return;
-
-        var items = new List<ExerciseCatalogItem>
+        // 1 Build the full canonical list
+        var canonical = new List<ExerciseCatalogItem>
     {
         // -----------------------
         // SQUAT & KNEE-DOMINANT
@@ -241,9 +240,16 @@ public sealed class ExerciseCatalogService : IExerciseCatalogService
         NI("Banded Pull-Apart", "Rear Delts", false, 0.5),
     };
 
-        await _conn.InsertAllAsync(items);
+        // 2) Fetch existing names (case-insensitive comparison)
+        var existing = await _conn.Table<ExerciseCatalogItem>().ToListAsync();
+        var have = new HashSet<string>(existing.Select(x => x.Name), StringComparer.OrdinalIgnoreCase);
 
-        // Local helper to keep entries terse
+        // 3) Insert only the missing ones
+        var toAdd = canonical.Where(x => !have.Contains(x.Name)).ToList();
+        if (toAdd.Count > 0)
+            await _conn.InsertAllAsync(toAdd);
+
+        // Local helper
         static ExerciseCatalogItem NI(string name, string bodyPart, bool compound, double incKg) =>
             new ExerciseCatalogItem
             {
@@ -257,22 +263,26 @@ public sealed class ExerciseCatalogService : IExerciseCatalogService
     // Search anywhere in the name, rank by match position
     public async Task<IReadOnlyList<ExerciseCatalogItem>> SearchAsync(string fragment, int limit = 15)
     {
-        if (string.IsNullOrWhiteSpace(fragment)) return Array.Empty<ExerciseCatalogItem>();
-        fragment = fragment.Trim();
+        if (string.IsNullOrWhiteSpace(fragment))
+            return Array.Empty<ExerciseCatalogItem>();
 
-        // Rank results with earlier matches first, then alphabetically
+        fragment = fragment.Trim();
+        var escaped = EscapeLike(fragment);
+
+        // The LIKE pattern searches *anywhere* in the string, case-insensitive
+        var like = $"%{escaped}%";
+
         var sql = $@"
 SELECT * FROM ExerciseCatalogItem
-WHERE Name LIKE ? ESCAPE '\'
-COLLATE NOCASE
+WHERE LOWER(Name) LIKE LOWER(?) ESCAPE '\'
 ORDER BY INSTR(LOWER(Name), LOWER(?)), Name
 LIMIT {limit}";
 
-        // wrap fragment with % for contains search
-        var like = $"%{EscapeLike(fragment)}%";
         return await _conn.QueryAsync<ExerciseCatalogItem>(sql, like, fragment);
 
         static string EscapeLike(string s) =>
-            s.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");
+            s.Replace(@"\", @"\\")
+             .Replace("%", @"\%")
+             .Replace("_", @"\_");
     }
 }
