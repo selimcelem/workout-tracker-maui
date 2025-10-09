@@ -14,144 +14,233 @@ public sealed class ExerciseCatalogService : IExerciseCatalogService
         await _conn.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_ExerciseCatalogItem_Name ON ExerciseCatalogItem(Name)");
     }
 
+    // Broader, consolidated seed list
     public async Task SeedDefaultsAsync()
     {
+        // Seed only if empty
         var count = await _conn.Table<ExerciseCatalogItem>().CountAsync();
         if (count > 0) return;
 
-        var items = new[]
-    {
-        // --- Squat / Lower ---
-        new ExerciseCatalogItem { Name = "Back Squat (Barbell)", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Front Squat (Barbell)", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "High-Bar Squat (Barbell)", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Low-Bar Squat (Barbell)", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Box Squat (Barbell)", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Goblet Squat (Dumbbell)", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Dumbbell Squat", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Hack Squat (Machine)", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Smith Machine Squat", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
+        var items = new List<ExerciseCatalogItem>
+        {
+            // -----------------------
+            // SQUAT & KNEE-DOMINANT
+            // -----------------------
+            NI("Back Squat (Barbell)", "Legs", true, 2.5),
+            NI("High-Bar Squat (Barbell)", "Legs", true, 2.5),
+            NI("Low-Bar Squat (Barbell)", "Legs", true, 2.5),
+            NI("Front Squat (Barbell)", "Legs", true, 2.5),
+            NI("Box Squat (Barbell)", "Legs", true, 2.5),
+            NI("Pause Squat (Barbell)", "Legs", true, 2.5),
+            NI("Pin Squat (Barbell)", "Legs", true, 2.5),
+            NI("Zercher Squat (Barbell)", "Legs", true, 2.5),
+            NI("Safety Bar Squat", "Legs", true, 2.5),
+            NI("Goblet Squat (Dumbbell)", "Legs", true, 2.5),
+            NI("Dumbbell Squat", "Legs", true, 2.5),
+            NI("Hack Squat (Machine)", "Legs", true, 2.5),
+            NI("Smith Machine Squat", "Legs", true, 2.5),
+            NI("Leg Press (45°)", "Legs", true, 5.0),
+            NI("Single-Leg Press", "Legs", true, 2.5),
+            NI("Walking Lunge (Dumbbells)", "Legs", true, 2.5),
+            NI("Reverse Lunge (Barbell)", "Legs", true, 2.5),
+            NI("Bulgarian Split Squat (DB)", "Legs", true, 2.5),
+            NI("Split Squat (Barbell)", "Legs", true, 2.5),
+            NI("Leg Extension", "Quads", false, 1.25),
+            NI("Sissy Squat", "Quads", false, 1.0),
 
-        // --- Deadlift / Hip hinge ---
-        new ExerciseCatalogItem { Name = "Deadlift (Barbell)", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Sumo Deadlift (Barbell)", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Romanian Deadlift (Barbell)", BodyPart = "Hamstrings", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Romanian Deadlift (Dumbbells)", BodyPart = "Hamstrings", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Trap Bar Deadlift", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Stiff-Leg Deadlift (Barbell)", BodyPart = "Hamstrings", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Good Morning (Barbell)", BodyPart = "Hamstrings", IsCompound = true, DefaultIncrementKg = 2.5 },
+            // -----------------------
+            // HIP HINGE & POSTERIOR
+            // -----------------------
+            NI("Deadlift (Barbell)", "Back", true, 2.5),
+            NI("Sumo Deadlift (Barbell)", "Back", true, 2.5),
+            NI("Trap Bar Deadlift", "Back", true, 2.5),
+            NI("Romanian Deadlift (Barbell)", "Hamstrings", true, 2.5),
+            NI("Stiff-Leg Deadlift (Barbell)", "Hamstrings", true, 2.5),
+            NI("Romanian Deadlift (Dumbbells)", "Hamstrings", true, 2.5),
+            NI("Good Morning (Barbell)", "Hamstrings", true, 2.5),
+            NI("Back Extension (45°/GHD)", "Lower Back", true, 2.5),
+            NI("Seated Leg Curl (Machine)", "Hamstrings", false, 1.25),
+            NI("Lying Leg Curl (Machine)", "Hamstrings", false, 1.25),
+            NI("Nordic Hamstring Curl", "Hamstrings", false, 0),
+            NI("Hip Thrust (Barbell)", "Glutes", true, 2.5),
+            NI("Glute Bridge (Barbell)", "Glutes", true, 2.5),
+            NI("Single-Leg Hip Thrust", "Glutes", true, 2.5),
+            NI("Cable Glute Kickback", "Glutes", false, 1.0),
 
-        // --- Bench / Chest press ---
-        new ExerciseCatalogItem { Name = "Bench Press (Barbell)", BodyPart = "Chest", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Bench Press (Dumbbells)", BodyPart = "Chest", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Incline Bench Press (Barbell)", BodyPart = "Chest", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Incline Bench Press (Dumbbells)", BodyPart = "Chest", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Decline Bench Press (Barbell)", BodyPart = "Chest", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Decline Bench Press (Dumbbells)", BodyPart = "Chest", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Machine Chest Press", BodyPart = "Chest", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Push-Up", BodyPart = "Chest", IsCompound = true, DefaultIncrementKg = 0 },
+            // -----------------------
+            // HORIZONTAL PRESS
+            // -----------------------
+            NI("Bench Press (Barbell)", "Chest", true, 2.5),
+            NI("Close-Grip Bench Press (Barbell)", "Triceps", true, 2.5),
+            NI("Paused Bench Press (Barbell)", "Chest", true, 2.5),
+            NI("Incline Bench Press (Barbell)", "Chest", true, 2.5),
+            NI("Decline Bench Press (Barbell)", "Chest", true, 2.5),
+            NI("Bench Press (Dumbbells)", "Chest", true, 2.5),
+            NI("Incline Press (Dumbbells)", "Chest", true, 2.5),
+            NI("Neutral-Grip DB Press", "Chest", true, 2.5),
+            NI("Machine Chest Press", "Chest", true, 2.5),
+            NI("Smith Machine Bench Press", "Chest", true, 2.5),
+            NI("Push-Up", "Chest", true, 0),
+            NI("Weighted Push-Up", "Chest", true, 2.5),
+            NI("Cable Fly", "Chest", false, 1.0),
+            NI("Incline Cable Fly", "Chest", false, 1.0),
+            NI("Pec Deck", "Chest", false, 1.0),
+            NI("Dumbbell Fly", "Chest", false, 1.0),
+            NI("Dips (Chest Emphasis)", "Chest", true, 0),
 
-        // --- Overhead press / Shoulders ---
-        new ExerciseCatalogItem { Name = "Overhead Press (Barbell)", BodyPart = "Shoulders", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Seated Overhead Press (Barbell)", BodyPart = "Shoulders", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Shoulder Press (Dumbbells)", BodyPart = "Shoulders", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Arnold Press (Dumbbells)", BodyPart = "Shoulders", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Machine Shoulder Press", BodyPart = "Shoulders", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Push Press (Barbell)", BodyPart = "Shoulders", IsCompound = true, DefaultIncrementKg = 2.5 },
+            // -----------------------
+            // VERTICAL PRESS / SHOULDERS
+            // -----------------------
+            NI("Overhead Press (Barbell)", "Shoulders", true, 2.5),
+            NI("Push Press (Barbell)", "Shoulders", true, 2.5),
+            NI("Seated OHP (Barbell)", "Shoulders", true, 2.5),
+            NI("Strict Press (Dumbbells)", "Shoulders", true, 2.5),
+            NI("Seated Shoulder Press (DB)", "Shoulders", true, 2.5),
+            NI("Arnold Press (DB)", "Shoulders", true, 2.5),
+            NI("Machine Shoulder Press", "Shoulders", true, 2.5),
+            NI("Lateral Raise (DB)", "Shoulders", false, 1.0),
+            NI("Lateral Raise (Cable)", "Shoulders", false, 1.0),
+            NI("Machine Lateral Raise", "Shoulders", false, 1.0),
+            NI("Front Raise (DB)", "Shoulders", false, 1.0),
+            NI("Rear Delt Fly (DB)", "Rear Delts", false, 1.0),
+            NI("Reverse Pec Deck", "Rear Delts", false, 1.0),
+            NI("Face Pull (Cable)", "Rear Delts", false, 1.0),
+            NI("Upright Row (EZ/Barbell)", "Shoulders", true, 1.25),
 
-        // --- Row / Horizontal pull ---
-        new ExerciseCatalogItem { Name = "Bent-Over Row (Barbell)", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Pendlay Row (Barbell)", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "One-Arm Row (Dumbbell)", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Chest-Supported Row (Dumbbells)", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "T-Bar Row", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Seated Cable Row", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Machine Row", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
+            // -----------------------
+            // HORIZONTAL PULL
+            // -----------------------
+            NI("Barbell Row (Bent-Over)", "Back", true, 2.5),
+            NI("Pendlay Row (Barbell)", "Back", true, 2.5),
+            NI("T-Bar Row", "Back", true, 2.5),
+            NI("Seal Row (Barbell/DB)", "Back", true, 2.5),
+            NI("Chest-Supported Row (Machine)", "Back", true, 2.5),
+            NI("One-Arm Row (DB)", "Back", true, 2.5),
+            NI("Cable Row (Seated)", "Back", true, 1.25),
+            NI("Machine High Row", "Back", true, 2.5),
+            NI("Meadow’s Row", "Back", true, 2.5),
 
-        // --- Vertical pull ---
-        new ExerciseCatalogItem { Name = "Pull-Up", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 0 },
-        new ExerciseCatalogItem { Name = "Chin-Up", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 0 },
-        new ExerciseCatalogItem { Name = "Lat Pulldown (Wide Grip)", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Lat Pulldown (Close/Neutral)", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
+            // -----------------------
+            // VERTICAL PULL
+            // -----------------------
+            NI("Pull-Up (Pronated)", "Lats", true, 0),
+            NI("Chin-Up (Supinated)", "Lats", true, 0),
+            NI("Neutral-Grip Pull-Up", "Lats", true, 0),
+            NI("Weighted Pull-Up", "Lats", true, 2.5),
+            NI("Lat Pulldown (Wide)", "Lats", true, 1.25),
+            NI("Lat Pulldown (Close/Neutral)", "Lats", true, 1.25),
+            NI("Straight-Arm Pulldown (Cable)", "Lats", false, 1.0),
 
-        // --- Quads / Hamstrings accessories ---
-        new ExerciseCatalogItem { Name = "Leg Press (45°)", BodyPart = "Quads", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Leg Extension (Machine)", BodyPart = "Quads", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Leg Curl (Seated)", BodyPart = "Hamstrings", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Leg Curl (Lying)", BodyPart = "Hamstrings", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Nordic Curl", BodyPart = "Hamstrings", IsCompound = false, DefaultIncrementKg = 0 },
-        new ExerciseCatalogItem { Name = "Hip Thrust (Barbell)", BodyPart = "Glutes", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Glute Bridge (Barbell)", BodyPart = "Glutes", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Bulgarian Split Squat (Dumbbells)", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Walking Lunge (Dumbbells)", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Reverse Lunge (Barbell)", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Step-Up (Dumbbells)", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 2.5 },
+            // -----------------------
+            // BICEPS
+            // -----------------------
+            NI("Barbell Curl", "Biceps", false, 1.25),
+            NI("EZ-Bar Curl", "Biceps", false, 1.25),
+            NI("Dumbbell Curl (Alternating)", "Biceps", false, 1.0),
+            NI("Incline DB Curl", "Biceps", false, 1.0),
+            NI("Hammer Curl", "Biceps", false, 1.0),
+            NI("Bayesian Cable Curl", "Biceps", false, 1.0),
+            NI("Cable Curl (EZ/Bar)", "Biceps", false, 1.0),
+            NI("Preacher Curl (Machine)", "Biceps", false, 1.0),
+            NI("Spider Curl", "Biceps", false, 1.0),
+            NI("Concentration Curl", "Biceps", false, 1.0),
 
-        // --- Chest accessories ---
-        new ExerciseCatalogItem { Name = "Chest Fly (Dumbbells)", BodyPart = "Chest", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Cable Fly (High-to-Low)", BodyPart = "Chest", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Cable Fly (Low-to-High)", BodyPart = "Chest", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Pec Deck (Machine)", BodyPart = "Chest", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Dips (Chest Lean)", BodyPart = "Chest", IsCompound = true, DefaultIncrementKg = 0 },
+            // -----------------------
+            // TRICEPS
+            // -----------------------
+            NI("Dip (Triceps Emphasis)", "Triceps", true, 0),
+            NI("Skullcrusher (EZ-Bar)", "Triceps", false, 1.25),
+            NI("Overhead Triceps Extension (DB)", "Triceps", false, 1.0),
+            NI("Cable Pushdown (Rope)", "Triceps", false, 1.0),
+            NI("Cable Pushdown (Bar/V)", "Triceps", false, 1.0),
+            NI("JM Press", "Triceps", true, 1.25),
+            NI("Reverse Grip Pressdown", "Triceps", false, 1.0),
 
-        // --- Shoulders accessories ---
-        new ExerciseCatalogItem { Name = "Lateral Raise (Dumbbells)", BodyPart = "Shoulders", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Cable Lateral Raise", BodyPart = "Shoulders", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Machine Lateral Raise", BodyPart = "Shoulders", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Rear Delt Fly (Dumbbells)", BodyPart = "Shoulders", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Reverse Pec Deck", BodyPart = "Shoulders", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Front Raise (Dumbbells)", BodyPart = "Shoulders", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Face Pull (Cable)", BodyPart = "Shoulders", IsCompound = false, DefaultIncrementKg = 1.0 },
+            // -----------------------
+            // CALVES
+            // -----------------------
+            NI("Standing Calf Raise (Machine)", "Calves", false, 1.25),
+            NI("Seated Calf Raise (Machine)", "Calves", false, 1.25),
+            NI("Donkey Calf Raise", "Calves", false, 1.25),
+            NI("Leg Press Calf Raise", "Calves", false, 1.25),
 
-        // --- Back accessories ---
-        new ExerciseCatalogItem { Name = "Straight-Arm Pulldown (Cable)", BodyPart = "Back", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Meadows Row", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Seal Row (Barbell)", BodyPart = "Back", IsCompound = true, DefaultIncrementKg = 2.5 },
+            // -----------------------
+            // CORE
+            // -----------------------
+            NI("Hanging Leg Raise", "Core", false, 0),
+            NI("Toes to Bar", "Core", false, 0),
+            NI("Cable Crunch", "Core", false, 1.0),
+            NI("Weighted Plank", "Core", false, 2.5),
+            NI("Ab Wheel Rollout", "Core", false, 0),
+            NI("Pallof Press (Cable)", "Core", false, 1.0),
+            NI("Russian Twist (Plate/DB)", "Core", false, 2.5),
+            NI("Side Plank", "Core", false, 0),
 
-        // --- Arms: biceps ---
-        new ExerciseCatalogItem { Name = "Biceps Curl (Dumbbells)", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Biceps Curl (Barbell)", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "EZ-Bar Curl", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Hammer Curl (Dumbbells)", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Incline Dumbbell Curl", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Preacher Curl (EZ-Bar)", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Cable Curl", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Concentration Curl", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.0 },
+            // -----------------------
+            // OLYMPIC / POWER VARIATIONS
+            // -----------------------
+            NI("Clean Pull", "Full Body", true, 2.5),
+            NI("Power Clean", "Full Body", true, 2.5),
+            NI("Hang Clean", "Full Body", true, 2.5),
+            NI("Snatch High Pull", "Full Body", true, 2.5),
+            NI("Push Jerk", "Full Body", true, 2.5),
 
-        // --- Arms: triceps ---
-        new ExerciseCatalogItem { Name = "Close-Grip Bench Press", BodyPart = "Arms", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Skull Crusher (EZ-Bar)", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Overhead Triceps Extension (Dumbbell)", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Triceps Pushdown (Cable)", BodyPart = "Arms", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Dip (Triceps Emphasis)", BodyPart = "Arms", IsCompound = true, DefaultIncrementKg = 0 },
+            // -----------------------
+            // KB / SLED / CARRIES
+            // -----------------------
+            NI("Kettlebell Swing (2-Hand)", "Posterior Chain", true, 2.5),
+            NI("Kettlebell Swing (1-Hand)", "Posterior Chain", true, 2.5),
+            NI("Goblet Carry", "Core", true, 2.5),
+            NI("Farmer’s Carry (DB)", "Forearms", true, 2.5),
+            NI("Suitcase Carry (DB)", "Core", true, 2.5),
+            NI("Sled Push", "Legs", true, 5.0),
+            NI("Sled Pull (Backward)", "Quads", true, 5.0),
 
-        // --- Calves ---
-        new ExerciseCatalogItem { Name = "Standing Calf Raise (Machine)", BodyPart = "Calves", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Seated Calf Raise (Machine)", BodyPart = "Calves", IsCompound = false, DefaultIncrementKg = 1.25 },
-        new ExerciseCatalogItem { Name = "Donkey Calf Raise", BodyPart = "Calves", IsCompound = false, DefaultIncrementKg = 1.25 },
+            // -----------------------
+            // NECK / TRAPS / FOREARMS
+            // -----------------------
+            NI("Shrug (Barbell)", "Traps", false, 2.5),
+            NI("Shrug (Dumbbells)", "Traps", false, 2.5),
+            NI("Behind-the-Back Shrug (BB)", "Traps", false, 2.5),
+            NI("Wrist Curl (DB/Bar)", "Forearms", false, 1.0),
+            NI("Reverse Wrist Curl (DB/Bar)", "Forearms", false, 1.0),
 
-        // --- Core ---
-        new ExerciseCatalogItem { Name = "Hanging Leg Raise", BodyPart = "Core", IsCompound = false, DefaultIncrementKg = 0 },
-        new ExerciseCatalogItem { Name = "Cable Crunch", BodyPart = "Core", IsCompound = false, DefaultIncrementKg = 1.0 },
-        new ExerciseCatalogItem { Name = "Ab Wheel Rollout", BodyPart = "Core", IsCompound = false, DefaultIncrementKg = 0 },
-        new ExerciseCatalogItem { Name = "Weighted Plank", BodyPart = "Core", IsCompound = false, DefaultIncrementKg = 2.5 },
-
-        // --- Misc / Accessories ---
-        new ExerciseCatalogItem { Name = "Farmer's Walk (Dumbbells)", BodyPart = "Full Body", IsCompound = true, DefaultIncrementKg = 2.5 },
-        new ExerciseCatalogItem { Name = "Sled Push", BodyPart = "Legs", IsCompound = true, DefaultIncrementKg = 5.0 },
-        new ExerciseCatalogItem { Name = "Sled Pull (Backward)", BodyPart = "Quads", IsCompound = true, DefaultIncrementKg = 5.0 },
-    };
-
+            // -----------------------
+            // REHAB / ACCESSORY (light)
+            // -----------------------
+            NI("External Rotation (Cable)", "Rotator Cuff", false, 0.5),
+            NI("Internal Rotation (Cable)", "Rotator Cuff", false, 0.5),
+            NI("Scapular Pull-Up", "Back", false, 0),
+            NI("Banded Face Pull", "Rear Delts", false, 0.5),
+            NI("Banded Pull-Apart", "Rear Delts", false, 0.5),
+        };
 
         await _conn.InsertAllAsync(items);
+
+        // Local helper to keep entries terse
+        static ExerciseCatalogItem NI(string name, string bodyPart, bool compound, double incKg) =>
+            new ExerciseCatalogItem { Name = name, BodyPart = bodyPart, IsCompound = compound, DefaultIncrementKg = incKg };
     }
 
+    // Search anywhere in the name, rank by match position
     public async Task<IReadOnlyList<ExerciseCatalogItem>> SearchAsync(string fragment, int limit = 15)
     {
         if (string.IsNullOrWhiteSpace(fragment)) return Array.Empty<ExerciseCatalogItem>();
         fragment = fragment.Trim();
 
-        var sql = $"SELECT * FROM ExerciseCatalogItem WHERE Name LIKE ? COLLATE NOCASE ORDER BY Name LIMIT {limit}";
-        return await _conn.QueryAsync<ExerciseCatalogItem>(sql, $"{fragment}%");
+        // Rank results with earlier matches first, then alphabetically
+        var sql = $@"
+SELECT * FROM ExerciseCatalogItem
+WHERE Name LIKE ? ESCAPE '\'
+COLLATE NOCASE
+ORDER BY INSTR(LOWER(Name), LOWER(?)), Name
+LIMIT {limit}";
+
+        // wrap fragment with % for contains search
+        var like = $"%{EscapeLike(fragment)}%";
+        return await _conn.QueryAsync<ExerciseCatalogItem>(sql, like, fragment);
+
+        static string EscapeLike(string s) =>
+            s.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");
     }
 }
