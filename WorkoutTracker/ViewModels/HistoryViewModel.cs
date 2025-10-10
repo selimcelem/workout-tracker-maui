@@ -31,24 +31,36 @@ public partial class HistoryViewModel : ObservableObject
     {
         RecentSessions.Clear();
 
-        var sessions = await _sessionService.GetRecentAsync(take) ?? new List<WorkoutSession>();
+        // Fetch ALL sessions once for a stable UI ordinal (then we'll take 'take' for display)
+        var all = await _sessionService.GetRecentAsync(int.MaxValue) ?? new List<WorkoutSession>();
 
-        foreach (var s in sessions.OrderByDescending(s => s.DateUtc))
+        // Build an ascending order to assign 1..N display numbers (tie-break by Id)
+        var asc = all.OrderBy(s => s.DateUtc).ThenBy(s => s.Id).ToList();
+        var displayNoById = new Dictionary<int, int>(asc.Count);
+        for (int i = 0; i < asc.Count; i++)
+            displayNoById[asc[i].Id] = i + 1;
+
+        // Show newest first but include "Session #N"
+        var page = all.OrderByDescending(s => s.DateUtc).ThenByDescending(s => s.Id)
+                      .Take(take)
+                      .ToList();
+
+        foreach (var s in page)
         {
             var sets = await _setService.GetBySessionAsync(s.Id) ?? new List<SetEntry>();
             var setCount = sets.Count;
 
-            var title = s.DateUtc.ToLocalTime().ToString("dddd, dd MMM yyyy HH:mm");
-            var subtitle = setCount == 1 ? "1 set" : $"{setCount} sets";
+            var when = s.DateUtc.ToLocalTime().ToString("dddd, dd MMM yyyy HH:mm");
+            var left = setCount == 1 ? "1 set" : $"{setCount} sets";
             if (!string.IsNullOrWhiteSpace(s.Notes))
-                subtitle += " • notes";
+                left += " • notes";
 
             RecentSessions.Add(new SessionListItem
             {
                 SessionId = s.Id,
                 DateUtc = s.DateUtc,
-                Title = title,
-                Subtitle = subtitle
+                Title = $"Session #{displayNoById[s.Id]} • {when}",
+                Subtitle = left
             });
         }
 
