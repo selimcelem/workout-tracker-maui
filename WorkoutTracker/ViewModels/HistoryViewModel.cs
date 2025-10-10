@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WorkoutTracker.Models;
@@ -10,6 +11,9 @@ public partial class HistoryViewModel : ObservableObject
 {
     private readonly ISessionService _sessionService;
     private readonly ISetService _setService;
+
+    // Bindable flag to enable/disable the “Clear All” button
+    [ObservableProperty] private bool hasAnySessions;
 
     // Explicit properties (avoid source-generator issues)
     public ObservableCollection<SessionListItem> RecentSessions { get; } = new();
@@ -47,6 +51,8 @@ public partial class HistoryViewModel : ObservableObject
                 Subtitle = subtitle
             });
         }
+
+        HasAnySessions = RecentSessions.Count > 0;
     }
 
     // Open a session details page
@@ -74,7 +80,24 @@ public partial class HistoryViewModel : ObservableObject
         await _sessionService.DeleteAsync(item.SessionId);
 
         RecentSessions.Remove(item);
+        HasAnySessions = RecentSessions.Count > 0;
     }
+
+    // Remove all sessions (and their sets) using existing APIs
+    [RelayCommand]
+    public async Task ClearAllAsync()
+    {
+        var all = await _sessionService.GetRecentAsync(int.MaxValue) ?? new List<WorkoutSession>();
+        foreach (var s in all)
+        {
+            await _setService.DeleteBySessionAsync(s.Id);
+            await _sessionService.DeleteAsync(s.Id);
+        }
+
+        RecentSessions.Clear();
+        HasAnySessions = false;
+    }
+
 
     public class SessionListItem
     {

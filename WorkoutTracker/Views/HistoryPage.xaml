@@ -6,6 +6,15 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     Title="History">
 
+    <!-- Toolbar item to clear all sessions -->
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Clear All"
+                 Priority="1"
+                 Order="Primary"
+                 Clicked="OnClearAllClicked"
+                 IsEnabled="{Binding HasAnySessions}" />
+    </ContentPage.ToolbarItems>
+    
     <!-- Grid so the list can take all remaining space -->
     <Grid RowDefinitions="Auto,*" Padding="16" RowSpacing="12">
         <Label Grid.Row="0" Text="Recent Sessions" FontAttributes="Bold" />

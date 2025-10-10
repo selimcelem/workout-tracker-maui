@@ -1,5 +1,4 @@
-﻿// File: WorkoutTracker/Services/SessionService.cs
-using SQLite;
+﻿using SQLite;
 using WorkoutTracker.Models;
 
 namespace WorkoutTracker.Services;
@@ -11,6 +10,7 @@ public interface ISessionService
     Task<WorkoutSession?> GetOpenSessionAsync();
     Task<List<WorkoutSession>> GetRecentAsync(int take = 20);
     Task DeleteAsync(int sessionId);
+    Task DeleteAllSessionsAsync();
 }
 
 public class SessionService : ISessionService
@@ -71,5 +71,14 @@ public class SessionService : ISessionService
         // delete sets first, then the session.
         await _sets.DeleteBySessionAsync(sessionId);
         await _conn.DeleteAsync<WorkoutSession>(sessionId);
+    }
+
+    public async Task DeleteAllSessionsAsync()
+    {
+        await _conn.RunInTransactionAsync(tran =>
+        {
+            tran.Execute("DELETE FROM SetEntry");
+            tran.Execute("DELETE FROM WorkoutSession");
+        });
     }
 }

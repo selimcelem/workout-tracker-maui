@@ -27,4 +27,19 @@ public partial class HistoryPage : ContentPage
             await DisplayAlert("History error", ex.Message, "OK");
         }
     }
+    private async void OnClearAllClicked(object sender, EventArgs e)
+    {
+        if (BindingContext is HistoryViewModel vm)
+        {
+            var confirm = await DisplayAlert(
+                "Clear history",
+                "Delete ALL sessions (and their sets)? This cannot be undone.",
+                "Delete", "Cancel");
+
+            if (confirm)
+                await vm.ClearAllAsync();
+        }
+    }
+
 }
+
