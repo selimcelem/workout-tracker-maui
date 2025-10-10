@@ -11,6 +11,8 @@ public interface ISessionService
     Task<List<WorkoutSession>> GetRecentAsync(int take = 20);
     Task DeleteAsync(int sessionId);
     Task DeleteAllSessionsAsync();
+    Task<int> CountAsync();
+    Task<int> GetDisplayNumberAsync(int sessionId);
 }
 
 public class SessionService : ISessionService
@@ -80,5 +82,20 @@ public class SessionService : ISessionService
             tran.Execute("DELETE FROM SetEntry");
             tran.Execute("DELETE FROM WorkoutSession");
         });
+    }
+
+    public Task<int> CountAsync() =>
+    _conn.Table<WorkoutSession>().CountAsync();
+
+    public async Task<int> GetDisplayNumberAsync(int sessionId)
+    {
+        var s = await _conn.FindAsync<WorkoutSession>(sessionId);
+        if (s is null) return 0;
+
+        // ordinal by (DateUtc, then Id) so numbering is stable
+        var sql = @"SELECT COUNT(*) FROM WorkoutSession
+                WHERE DateUtc < ?
+                   OR (DateUtc = ? AND Id <= ?)";
+        return await _conn.ExecuteScalarAsync<int>(sql, s.DateUtc, s.DateUtc, sessionId);
     }
 }

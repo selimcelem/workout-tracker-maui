@@ -87,6 +87,7 @@ public partial class TodayViewModel : ObservableObject
     [ObservableProperty] private Exercise? selectedExercise;
 
     [ObservableProperty] private TrainingGoal selectedGoal = TrainingGoal.Hypertrophy; // default
+    [ObservableProperty] private string sessionHeader = string.Empty;
 
     partial void OnSelectedCategoryChanged(WorkoutCategory? value) => _ = FilterExercisesForCategoryAsync(value);
 
@@ -161,6 +162,9 @@ public partial class TodayViewModel : ObservableObject
 
         if (CurrentSession != null)
         {
+            var n = await _sessions.GetDisplayNumberAsync(CurrentSession.Id);
+            SessionHeader = $"Session #{n}";
+            HasActiveSession = true;
             var nameById = ExerciseOptions.ToDictionary(e => e.Id, e => e.Name);
             var raw = await _sets.GetBySessionAsync(CurrentSession.Id);
 
@@ -180,6 +184,7 @@ public partial class TodayViewModel : ObservableObject
         }
         else
         {
+            SessionHeader = string.Empty;
             TodaysSets.Clear();
             HasActiveSession = false;
         }
@@ -342,6 +347,7 @@ public partial class TodayViewModel : ObservableObject
         HasActiveSession = false;
         TodaysSets.Clear();
         _sessionAnchors.Clear();
+        SessionHeader = string.Empty;
     }
 
     [RelayCommand]
