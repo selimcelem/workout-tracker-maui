@@ -162,9 +162,10 @@ public partial class TodayViewModel : ObservableObject
 
         if (CurrentSession != null)
         {
-            var n = await _sessions.GetDisplayNumberAsync(CurrentSession.Id);
-            SessionHeader = $"Session #{n}";
+            var displayNo = await _sessions.GetDisplayNumberAsync(CurrentSession.Id);
+            SessionHeader = $"Session #{displayNo}";
             HasActiveSession = true;
+
             var nameById = ExerciseOptions.ToDictionary(e => e.Id, e => e.Name);
             var raw = await _sets.GetBySessionAsync(CurrentSession.Id);
 
@@ -173,14 +174,12 @@ public partial class TodayViewModel : ObservableObject
                 {
                     Id = s.Id,
                     TimestampUtc = s.TimestampUtc,
-                    ExerciseName = nameById.TryGetValue(s.ExerciseId, out var n) ? n : $"#{s.ExerciseId}",
+                    ExerciseName = nameById.TryGetValue(s.ExerciseId, out var exName) ? exName : $"#{s.ExerciseId}",
                     SetNumber = s.SetNumber,
                     Reps = s.Reps,
                     Weight = s.Weight,
                     Rpe = s.Rpe
                 }));
-
-            HasActiveSession = true;
         }
         else
         {
@@ -273,6 +272,9 @@ public partial class TodayViewModel : ObservableObject
         _sessionAnchors.Clear();
         TodaysSets.Clear();
         HasActiveSession = true;
+
+        var displayNo = await _sessions.CountAsync();
+        SessionHeader = $"Session #{displayNo}";
     }
 
     [RelayCommand]

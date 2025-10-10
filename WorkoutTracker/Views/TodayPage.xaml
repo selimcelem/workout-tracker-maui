@@ -10,12 +10,10 @@
         <VerticalStackLayout Padding="16" Spacing="12">
 
             <!-- Session header -->
-            <Grid ColumnDefinitions="Auto,*">
-                <Label Text="Session:" FontAttributes="Bold" />
-                <Label Grid.Column="1"
-                       Text="{Binding CurrentSession.Id, StringFormat='ID {0}'}"
-                       IsVisible="{Binding CurrentSession, Converter={StaticResource NullToBoolConverter}}" />
-            </Grid>
+            <Label  Text="{Binding SessionHeader}"
+                    IsVisible="{Binding HasActiveSession}"
+                    FontAttributes="Bold"
+                    Margin="0,0,0,4" />
 
             <!-- Start / End session -->
             <Button Text="Start Session"
