@@ -36,11 +36,20 @@ public partial class ExercisesViewModel : ObservableObject
     {
         var typed = (NewExerciseName ?? "").Trim();
 
-        // If nothing typed, fall back to the old prompt flow
+        // 1) Empty input = fallback to prompt flow
         if (string.IsNullOrWhiteSpace(typed))
         {
             var prompted = await PromptExerciseNameWithSuggestionsAsync();
             if (string.IsNullOrWhiteSpace(prompted)) return;
+
+            // Duplicate check
+            var exists = await _exercises.GetByNameAsync(prompted);
+            if (exists != null)
+            {
+                await Shell.Current.DisplayAlert("Already exists",
+                    $"An exercise named \"{prompted}\" already exists.", "OK");
+                return;
+            }
 
             await _exercises.AddAsync(prompted);
             NewExerciseName = "";
@@ -48,9 +57,18 @@ public partial class ExercisesViewModel : ObservableObject
             return;
         }
 
-        // User already typed something → resolve with suggestions (no extra prompt)
+        // 2) User typed something → resolve using suggestions (non-blocking prompt)
         var resolved = await ResolveNameWithSuggestionsAsync(typed);
         if (string.IsNullOrWhiteSpace(resolved)) return;
+
+        // Duplicate check AFTER suggestion resolution
+        var existing = await _exercises.GetByNameAsync(resolved);
+        if (existing != null)
+        {
+            await Shell.Current.DisplayAlert("Already exists",
+                $"An exercise named \"{resolved}\" already exists.", "OK");
+            return;
+        }
 
         await _exercises.AddAsync(resolved);
         NewExerciseName = "";
