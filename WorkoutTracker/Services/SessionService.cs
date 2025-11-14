@@ -28,10 +28,36 @@ public class SessionService : ISessionService
 
     public async Task<WorkoutSession> StartSessionAsync(string? notes = null)
     {
-        // If an open (not closed) session exists today, return it
-        var existing = await GetOpenSessionAsync();
-        if (existing != null) return existing;
+        // 1) If an open session exists, reuse it
+        var open = await GetOpenSessionAsync();
+        if (open != null)
+            return open;
 
+        var todayUtc = DateTime.UtcNow.Date;
+
+        // 2) Try to resume the most recent session from today (even if it's closed)
+        var lastToday = await _conn.Table<WorkoutSession>()
+            .Where(s => s.DateUtc >= todayUtc)
+            .OrderByDescending(s => s.DateUtc)
+            .FirstOrDefaultAsync();
+
+        if (lastToday != null)
+        {
+            lastToday.IsClosed = false;
+
+            // Optionally merge in new notes if provided
+            if (!string.IsNullOrWhiteSpace(notes))
+            {
+                lastToday.Notes = string.IsNullOrWhiteSpace(lastToday.Notes)
+                    ? notes
+                    : $"{lastToday.Notes}\n{notes}";
+            }
+
+            await _conn.UpdateAsync(lastToday);
+            return lastToday;
+        }
+
+        // 3) No session today yet → create a brand-new one
         var session = new WorkoutSession
         {
             DateUtc = DateTime.UtcNow,
