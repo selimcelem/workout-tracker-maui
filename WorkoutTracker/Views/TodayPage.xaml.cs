@@ -10,22 +10,20 @@ public partial class TodayPage : ContentPage
         InitializeComponent();
         BindingContext = vm;
     }
-
     protected override void OnAppearing()
     {
         base.OnAppearing();
 
         if (BindingContext is TodayViewModel m)
         {
-            // keep data fresh
             m.LoadCommand.Execute(null);
 
-            // sync picker to the saved goal
             GoalPicker.SelectedIndex = m.SelectedGoal switch
             {
                 TrainingGoal.Strength => 0,
                 TrainingGoal.Hypertrophy => 1,
                 TrainingGoal.Endurance => 2,
+                TrainingGoal.NoRecommendation => 3,
                 _ => 1
             };
         }
@@ -40,7 +38,9 @@ public partial class TodayPage : ContentPage
             {
                 0 => TrainingGoal.Strength,
                 1 => TrainingGoal.Hypertrophy,
-                _ => TrainingGoal.Endurance
+                2 => TrainingGoal.Endurance,
+                3 => TrainingGoal.NoRecommendation,
+                _ => TrainingGoal.Hypertrophy
             };
         }
     }

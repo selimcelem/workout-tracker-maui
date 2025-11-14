@@ -523,6 +523,10 @@ public partial class TodayViewModel : ObservableObject
     // ---------- Recommendation logic ----------
     private async Task RecommendFromLastSessionAsync(Exercise? exercise)
     {
+        // Disable all recommendations if goal is NoRecommendation
+        if (SelectedGoal == TrainingGoal.NoRecommendation)
+            return;
+
         if (exercise == null) return;
 
         // Resolve goal config

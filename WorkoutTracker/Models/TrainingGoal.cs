@@ -4,7 +4,8 @@
     {
         Strength = 0,
         Hypertrophy = 1,
-        Endurance = 2
+        Endurance = 2,
+        NoRecommendation
     }
 
     public sealed class GoalConfig
