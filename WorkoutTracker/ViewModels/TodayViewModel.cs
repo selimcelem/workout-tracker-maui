@@ -273,6 +273,9 @@ public partial class TodayViewModel : ObservableObject
         TodaysSets.Clear();
         HasActiveSession = true;
 
+        // Reload UI
+        await Load();
+
         var displayNo = await _sessions.CountAsync();
         SessionHeader = $"Session #{displayNo}";
     }
