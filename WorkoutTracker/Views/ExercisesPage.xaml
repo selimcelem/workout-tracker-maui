@@ -6,53 +6,69 @@
              x:Name="ExercisesPageRoot"
              Title="Exercises">
 
-    <VerticalStackLayout Padding="16" Spacing="12">
-        <!-- New exercise input and button -->
-        <Grid ColumnDefinitions="*,Auto">
-            <Entry Placeholder="New exercise name" Text="{Binding NewExerciseName}" />
-            <Button Grid.Column="1" Text="Add" Command="{Binding AddCommand}" />
-        </Grid>
-        
-        <!-- Exercise list -->
-        <ScrollView>
-            <CollectionView ItemsSource="{Binding Items}"
-                    SelectionMode="None"
-                    Margin="0,0,0,40">
+    <Grid RowDefinitions="Auto,*" Padding="16">
 
-                <CollectionView.EmptyView>
-                    <Label Text="No exercises added yet."
-                   Opacity="0.6"
-                   HorizontalOptions="Center"
-                   Margin="0,24,0,0"/>
-                </CollectionView.EmptyView>
+        <!-- TOP: Input + Add button -->
+        <VerticalStackLayout Grid.Row="0" Spacing="12">
 
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <SwipeView>
-                            <SwipeView.RightItems>
-                                <SwipeItems Mode="Reveal">
-                                    <SwipeItem
-                                Text="Delete"
-                                BackgroundColor="IndianRed"
-                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:ExercisesViewModel}}, Path=DeleteCommand}"
-                                CommandParameter="{Binding Id}" />
+            <Grid ColumnDefinitions="*,Auto">
+                <Entry Placeholder="New exercise name"
+                       Text="{Binding NewExerciseName}" />
 
-                                    <SwipeItem
-                                Text="Assign"
-                                BackgroundColor="DodgerBlue"
-                                Command="{Binding BindingContext.AssignToCategoryCommand, Source={x:Reference ExercisesPageRoot}}"
-                                CommandParameter="{Binding}" />
-                                </SwipeItems>
-                            </SwipeView.RightItems>
+                <Button Grid.Column="1"
+                        Text="Add"
+                        Command="{Binding AddCommand}" />
+            </Grid>
 
-                            <Grid ColumnDefinitions="*,Auto" Padding="8">
-                                <Label Text="{Binding Name}" VerticalOptions="Center" />
-                            </Grid>
-                        </SwipeView>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
+        </VerticalStackLayout>
 
-            </CollectionView>
-        </ScrollView>
-    </VerticalStackLayout>
+
+        <!-- BOTTOM: Scrollable list (CollectionView scrolls alone) -->
+        <CollectionView Grid.Row="1"
+                        ItemsSource="{Binding Items}"
+                        SelectionMode="None"
+                        Margin="0,0,0,20">
+
+            <CollectionView.EmptyView>
+                <Label Text="No exercises added yet."
+                       Opacity="0.6"
+                       HorizontalOptions="Center"
+                       Margin="0,24,0,0"/>
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <SwipeView>
+
+                        <SwipeView.RightItems>
+                            <SwipeItems Mode="Reveal">
+
+                                <!-- Delete -->
+                                <SwipeItem Text="Delete"
+                                           BackgroundColor="IndianRed"
+                                           Command="{Binding Source={RelativeSource AncestorType={x:Type vm:ExercisesViewModel}}, Path=DeleteCommand}"
+                                           CommandParameter="{Binding Id}" />
+
+                                <!-- Assign -->
+                                <SwipeItem Text="Assign"
+                                           BackgroundColor="DodgerBlue"
+                                           Command="{Binding BindingContext.AssignToCategoryCommand, Source={x:Reference ExercisesPageRoot}}"
+                                           CommandParameter="{Binding}" />
+
+                            </SwipeItems>
+                        </SwipeView.RightItems>
+
+
+                        <Grid ColumnDefinitions="*,Auto" Padding="8">
+                            <Label Text="{Binding Name}" VerticalOptions="Center" />
+                        </Grid>
+
+                    </SwipeView>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+        </CollectionView>
+
+    </Grid>
+
 </ContentPage>
